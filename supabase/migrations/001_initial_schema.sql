@@ -174,6 +174,7 @@ begin
 end;
 $$;
 
+drop trigger if exists set_household_invite_code on public.households;
 create trigger set_household_invite_code
   before insert on public.households
   for each row execute function public.set_invite_code();
@@ -200,49 +201,68 @@ returns uuid language sql security definer stable as $$
   select household_id from public.profiles where id = auth.uid()
 $$;
 
+drop policy if exists "profiles_read" on public.profiles;
 create policy "profiles_read" on public.profiles
-  for select using (
+  for select to authenticated using (
     id = auth.uid()
     or household_id = public.get_my_household_id()
   );
+drop policy if exists "profiles_insert" on public.profiles;
 create policy "profiles_insert" on public.profiles
-  for insert with check (id = auth.uid());
+  for insert to authenticated with check (id = auth.uid());
+drop policy if exists "profiles_update" on public.profiles;
 create policy "profiles_update" on public.profiles
-  for update using (id = auth.uid());
+  for update to authenticated using (id = auth.uid());
 
+-- Households are readable by any signed-in user so that signup can work:
+-- the "create household" flow inserts a row and reads it back, and the
+-- "join with invite code" flow looks a household up by its code -- both
+-- happen before the user is a member, so a member-only read rule blocks
+-- them. Households only contain a name + invite code; all real data
+-- (projects, tasks, budget, etc.) stays locked to the user's own household.
+drop policy if exists "households_read" on public.households;
 create policy "households_read" on public.households
-  for select using (id = public.get_my_household_id());
+  for select to authenticated using (true);
+drop policy if exists "households_insert" on public.households;
 create policy "households_insert" on public.households
-  for insert with check (true);
+  for insert to authenticated with check (true);
+drop policy if exists "households_update" on public.households;
 create policy "households_update" on public.households
-  for update using (id = public.get_my_household_id());
+  for update to authenticated using (id = public.get_my_household_id());
 
+drop policy if exists "projects_all" on public.projects;
 create policy "projects_all" on public.projects
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
+drop policy if exists "tasks_all" on public.tasks;
 create policy "tasks_all" on public.tasks
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
+drop policy if exists "events_all" on public.events;
 create policy "events_all" on public.events
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
+drop policy if exists "budget_categories_all" on public.budget_categories;
 create policy "budget_categories_all" on public.budget_categories
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
+drop policy if exists "transactions_all" on public.transactions;
 create policy "transactions_all" on public.transactions
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
+drop policy if exists "shopping_lists_all" on public.shopping_lists;
 create policy "shopping_lists_all" on public.shopping_lists
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
+drop policy if exists "shopping_items_all" on public.shopping_items;
 create policy "shopping_items_all" on public.shopping_items
-  for all using (
+  for all to authenticated using (
     exists (
       select 1 from public.shopping_lists sl
       where sl.id = list_id
@@ -257,16 +277,19 @@ create policy "shopping_items_all" on public.shopping_items
     )
   );
 
+drop policy if exists "contacts_all" on public.contacts;
 create policy "contacts_all" on public.contacts
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
+drop policy if exists "inventory_all" on public.inventory_items;
 create policy "inventory_all" on public.inventory_items
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
+drop policy if exists "notes_all" on public.notes;
 create policy "notes_all" on public.notes
-  for all using (household_id = public.get_my_household_id())
+  for all to authenticated using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
 
 -- =====================
@@ -301,17 +324,24 @@ begin
 end;
 $$;
 
+drop trigger if exists projects_updated_at on public.projects;
 create trigger projects_updated_at before update on public.projects
   for each row execute function public.handle_updated_at();
+drop trigger if exists tasks_updated_at on public.tasks;
 create trigger tasks_updated_at before update on public.tasks
   for each row execute function public.handle_updated_at();
+drop trigger if exists events_updated_at on public.events;
 create trigger events_updated_at before update on public.events
   for each row execute function public.handle_updated_at();
+drop trigger if exists contacts_updated_at on public.contacts;
 create trigger contacts_updated_at before update on public.contacts
   for each row execute function public.handle_updated_at();
+drop trigger if exists inventory_updated_at on public.inventory_items;
 create trigger inventory_updated_at before update on public.inventory_items
   for each row execute function public.handle_updated_at();
+drop trigger if exists notes_updated_at on public.notes;
 create trigger notes_updated_at before update on public.notes
   for each row execute function public.handle_updated_at();
+drop trigger if exists profiles_updated_at on public.profiles;
 create trigger profiles_updated_at before update on public.profiles
   for each row execute function public.handle_updated_at();
