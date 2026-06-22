@@ -381,7 +381,7 @@ export default function BudgetPage() {
                   const payer = members.find(m => m.id === t.created_by)
                   return (
                     <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-                      <div className="w-2 h-8 rounded-full shrink-0 bg-red-500" />
+                      <div className={`w-2 h-8 rounded-full shrink-0 bg-${t.budget_categories?.color ?? 'gray'}-500`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground">{t.title}</p>
                         <p className="text-xs text-muted-foreground">
