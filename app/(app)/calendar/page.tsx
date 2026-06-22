@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getHouseholdId } from '@/lib/household'
 import type { CalendarEvent, RecurrenceType } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight, MapPin, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -120,9 +122,13 @@ export default function CalendarPage() {
       recurrence: form.recurrence,
     }
     if (editing) {
-      await supabase.from('events').update(payload).eq('id', editing.id)
+      const { error } = await supabase.from('events').update(payload).eq('id', editing.id)
+      if (error) { toast.error(error.message); return }
     } else {
-      await supabase.from('events').insert(payload)
+      const household_id = await getHouseholdId(supabase)
+      if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+      const { error } = await supabase.from('events').insert({ ...payload, household_id })
+      if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
     load()

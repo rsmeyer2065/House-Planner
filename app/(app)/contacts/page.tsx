@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getHouseholdId } from '@/lib/household'
 import type { Contact } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, Phone, Mail, Globe, MapPin, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 const CATEGORIES = ['plumber', 'electrician', 'contractor', 'cleaner', 'landscaper', 'hvac', 'doctor', 'dentist', 'vet', 'neighbor', 'family', 'friend', 'other']
 
@@ -93,9 +95,13 @@ export default function ContactsPage() {
       last_service_date: form.last_service_date || null,
     }
     if (editing) {
-      await supabase.from('contacts').update(payload).eq('id', editing.id)
+      const { error } = await supabase.from('contacts').update(payload).eq('id', editing.id)
+      if (error) { toast.error(error.message); return }
     } else {
-      await supabase.from('contacts').insert(payload)
+      const household_id = await getHouseholdId(supabase)
+      if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+      const { error } = await supabase.from('contacts').insert({ ...payload, household_id })
+      if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
     load()
