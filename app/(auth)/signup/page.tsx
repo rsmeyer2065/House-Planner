@@ -11,6 +11,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 
+function generateInviteCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
+
 export default function SignupPage() {
   const router = useRouter()
   const [fullName, setFullName] = useState('')
@@ -43,12 +48,12 @@ export default function SignupPage() {
     if (tab === 'create') {
       const { data: household, error: hError } = await supabase
         .from('households')
-        .insert({ name: householdName })
+        .insert({ name: householdName, invite_code: generateInviteCode() })
         .select()
         .single()
 
       if (hError || !household) {
-        toast.error('Failed to create household')
+        toast.error(hError?.message ?? 'Failed to create household')
         setLoading(false)
         return
       }
