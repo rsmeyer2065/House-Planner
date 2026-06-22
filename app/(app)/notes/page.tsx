@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getHouseholdId } from '@/lib/household'
 import type { Note } from '@/lib/types'
 import { Plus, X, Trash2, Pin, PinOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 const NOTE_COLORS = ['yellow', 'blue', 'green', 'pink', 'purple', 'orange', 'teal', 'red']
 
@@ -83,9 +85,13 @@ export default function NotesPage() {
       color: form.color,
     }
     if (editing) {
-      await supabase.from('notes').update(payload).eq('id', editing.id)
+      const { error } = await supabase.from('notes').update(payload).eq('id', editing.id)
+      if (error) { toast.error(error.message); return }
     } else {
-      await supabase.from('notes').insert({ ...payload, pinned: false })
+      const household_id = await getHouseholdId(supabase)
+      if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+      const { error } = await supabase.from('notes').insert({ ...payload, pinned: false, household_id })
+      if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
     load()

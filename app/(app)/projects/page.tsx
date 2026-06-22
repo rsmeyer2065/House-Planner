@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getHouseholdId } from '@/lib/household'
 import type { Project, ProjectStatus, Priority } from '@/lib/types'
 import { Plus, X, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 const STATUS_COLORS: Record<ProjectStatus, string> = {
   planned: 'bg-gray-100 text-gray-700',
@@ -90,9 +92,13 @@ export default function ProjectsPage() {
       end_date: form.end_date || null,
     }
     if (editing) {
-      await supabase.from('projects').update(payload).eq('id', editing.id)
+      const { error } = await supabase.from('projects').update(payload).eq('id', editing.id)
+      if (error) { toast.error(error.message); return }
     } else {
-      await supabase.from('projects').insert(payload)
+      const household_id = await getHouseholdId(supabase)
+      if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+      const { error } = await supabase.from('projects').insert({ ...payload, household_id })
+      if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
     load()

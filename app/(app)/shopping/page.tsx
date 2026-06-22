@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getHouseholdId } from '@/lib/household'
 import type { ShoppingList, ShoppingItem } from '@/lib/types'
 import { Plus, X, Trash2, CheckSquare2, Square, ShoppingCart } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export default function ShoppingPage() {
   const [lists, setLists] = useState<ShoppingList[]>([])
@@ -51,7 +53,14 @@ export default function ShoppingPage() {
 
   async function createList() {
     if (!listName.trim()) return
-    const { data } = await supabase.from('shopping_lists').insert({ name: listName }).select().single()
+    const household_id = await getHouseholdId(supabase)
+    if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+    const { data, error } = await supabase
+      .from('shopping_lists')
+      .insert({ name: listName, household_id })
+      .select()
+      .single()
+    if (error) { toast.error(error.message); return }
     setListName('')
     setShowListModal(false)
     await load()
@@ -67,13 +76,14 @@ export default function ShoppingPage() {
 
   async function addItem() {
     if (!newItem.name.trim() || !selectedList) return
-    await supabase.from('shopping_items').insert({
+    const { error } = await supabase.from('shopping_items').insert({
       list_id: selectedList,
       name: newItem.name,
       quantity: newItem.quantity || null,
       category: newItem.category || null,
       checked: false,
     })
+    if (error) { toast.error(error.message); return }
     setNewItem({ name: '', quantity: '', category: '' })
     setShowItemForm(false)
     load()

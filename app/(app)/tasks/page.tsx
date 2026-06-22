@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getHouseholdId } from '@/lib/household'
 import type { Task, Priority, RecurrenceType } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, CheckSquare2, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 const PRIORITY_COLORS: Record<Priority, string> = {
   low: 'bg-green-100 text-green-700',
@@ -87,9 +89,13 @@ export default function TasksPage() {
       recurrence: form.recurrence,
     }
     if (editing) {
-      await supabase.from('tasks').update(payload).eq('id', editing.id)
+      const { error } = await supabase.from('tasks').update(payload).eq('id', editing.id)
+      if (error) { toast.error(error.message); return }
     } else {
-      await supabase.from('tasks').insert({ ...payload, status: 'pending' })
+      const household_id = await getHouseholdId(supabase)
+      if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+      const { error } = await supabase.from('tasks').insert({ ...payload, status: 'pending', household_id })
+      if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
     load()

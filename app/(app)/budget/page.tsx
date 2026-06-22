@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getHouseholdId } from '@/lib/household'
 import type { Transaction, BudgetCategory } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 type FormData = {
   title: string
@@ -94,9 +96,13 @@ export default function BudgetPage() {
       notes: txnForm.notes || null,
     }
     if (editingTxn) {
-      await supabase.from('transactions').update(payload).eq('id', editingTxn.id)
+      const { error } = await supabase.from('transactions').update(payload).eq('id', editingTxn.id)
+      if (error) { toast.error(error.message); return }
     } else {
-      await supabase.from('transactions').insert(payload)
+      const household_id = await getHouseholdId(supabase)
+      if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+      const { error } = await supabase.from('transactions').insert({ ...payload, household_id })
+      if (error) { toast.error(error.message); return }
     }
     setShowTxnModal(false)
     load()
@@ -134,9 +140,13 @@ export default function BudgetPage() {
       color: catForm.color,
     }
     if (editingCat) {
-      await supabase.from('budget_categories').update(payload).eq('id', editingCat.id)
+      const { error } = await supabase.from('budget_categories').update(payload).eq('id', editingCat.id)
+      if (error) { toast.error(error.message); return }
     } else {
-      await supabase.from('budget_categories').insert(payload)
+      const household_id = await getHouseholdId(supabase)
+      if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+      const { error } = await supabase.from('budget_categories').insert({ ...payload, household_id })
+      if (error) { toast.error(error.message); return }
     }
     setShowCatModal(false)
     load()
