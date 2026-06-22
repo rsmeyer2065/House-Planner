@@ -18,7 +18,7 @@ type Stats = {
   projects: number
   tasks: number
   events: number
-  balance: number
+  monthExpenses: number
   shopping: number
   contacts: number
   inventory: number
@@ -27,7 +27,7 @@ type Stats = {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({
-    projects: 0, tasks: 0, events: 0, balance: 0,
+    projects: 0, tasks: 0, events: 0, monthExpenses: 0,
     shopping: 0, contacts: 0, inventory: 0, notes: 0,
   })
   const [loading, setLoading] = useState(true)
@@ -43,13 +43,15 @@ export default function DashboardPage() {
         supabase.from('contacts').select('id', { count: 'exact', head: true }),
         supabase.from('inventory_items').select('id', { count: 'exact', head: true }),
         supabase.from('notes').select('id', { count: 'exact', head: true }),
-        supabase.from('transactions').select('amount, type'),
+        supabase.from('transactions').select('amount, type, date'),
       ])
 
-      let balance = 0
+      let monthExpenses = 0
       if (transactions.data) {
-        balance = transactions.data.reduce(
-          (acc, t) => (t.type === 'income' ? acc + Number(t.amount) : acc - Number(t.amount)),
+        const month = new Date().toISOString().slice(0, 7)
+        monthExpenses = transactions.data.reduce(
+          (acc, t) =>
+            t.type === 'expense' && t.date?.slice(0, 7) === month ? acc + Number(t.amount) : acc,
           0
         )
       }
@@ -58,7 +60,7 @@ export default function DashboardPage() {
         projects: projects.count ?? 0,
         tasks: tasks.count ?? 0,
         events: events.count ?? 0,
-        balance,
+        monthExpenses,
         shopping: shopping.count ?? 0,
         contacts: contacts.count ?? 0,
         inventory: inventory.count ?? 0,
@@ -73,7 +75,7 @@ export default function DashboardPage() {
     { href: '/projects', label: 'Active Projects', value: stats.projects, icon: Hammer, bg: 'bg-blue-50', text: 'text-blue-600' },
     { href: '/tasks', label: 'Pending Tasks', value: stats.tasks, icon: CheckSquare2, bg: 'bg-orange-50', text: 'text-orange-600' },
     { href: '/calendar', label: 'Upcoming Events', value: stats.events, icon: CalendarDays, bg: 'bg-green-50', text: 'text-green-600' },
-    { href: '/budget', label: 'Net Balance', value: `$${stats.balance.toFixed(2)}`, icon: Wallet, bg: 'bg-purple-50', text: 'text-purple-600' },
+    { href: '/budget', label: "This Month's Expenses", value: `$${stats.monthExpenses.toFixed(2)}`, icon: Wallet, bg: 'bg-purple-50', text: 'text-purple-600' },
     { href: '/shopping', label: 'Shopping Lists', value: stats.shopping, icon: ShoppingCart, bg: 'bg-pink-50', text: 'text-pink-600' },
     { href: '/contacts', label: 'Contacts', value: stats.contacts, icon: Phone, bg: 'bg-teal-50', text: 'text-teal-600' },
     { href: '/inventory', label: 'Inventory Items', value: stats.inventory, icon: Package, bg: 'bg-amber-50', text: 'text-amber-600' },
