@@ -204,6 +204,15 @@ export default function BudgetPage() {
       if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
       const { error } = await supabase.from('transactions').insert({ ...payload, household_id })
       if (error) { toast.error(error.message); return }
+      const logUserId = payload.created_by || currentUserId
+      if (logUserId) {
+        await supabase.from('activity_log').insert({
+          household_id,
+          user_id: logUserId,
+          action_type: 'transaction_added',
+          entity_title: `${payload.title} ($${Number(payload.amount).toFixed(2)})`,
+        })
+      }
     }
     setShowTxnModal(false)
     load()

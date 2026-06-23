@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
-import type { CalendarEvent, RecurrenceType } from '@/lib/types'
-import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight, MapPin, Clock } from 'lucide-react'
+import type { CalendarEvent, EventAttendee, RecurrenceType } from '@/lib/types'
+import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight, MapPin, Clock, Check, Minus, X as XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -22,6 +22,18 @@ const COLOR_CLASSES: Record<string, string> = {
   pink: 'bg-pink-100 text-pink-800 border-pink-200',
   teal: 'bg-teal-100 text-teal-800 border-teal-200',
   yellow: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+}
+
+const RSVP_STATUS_STYLE: Record<string, string> = {
+  attending: 'bg-green-100 text-green-700 border-green-200',
+  declined: 'bg-red-100 text-red-700 border-red-200',
+  maybe: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+}
+
+const RSVP_DOT: Record<string, string> = {
+  attending: 'bg-green-500',
+  declined: 'bg-red-500',
+  maybe: 'bg-yellow-500',
 }
 
 type FormData = {
@@ -45,8 +57,15 @@ function toLocalDateString(date: Date) {
   return date.toISOString().slice(0, 10)
 }
 
+function initials(name: string | null | undefined) {
+  if (!name) return '?'
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
+
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [attendees, setAttendees] = useState<Record<string, EventAttendee[]>>({})
+  const [currentUserId, setCurrentUserId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [today] = useState(new Date())
   const [current, setCurrent] = useState(new Date())
@@ -58,11 +77,29 @@ export default function CalendarPage() {
   const supabase = createClient()
 
   async function load() {
-    const { data } = await supabase
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) setCurrentUserId(user.id)
+
+    const { data: eventsData } = await supabase
       .from('events')
       .select('*')
       .order('start_time', { ascending: true })
-    setEvents(data ?? [])
+    setEvents(eventsData ?? [])
+
+    if (eventsData && eventsData.length > 0) {
+      const eventIds = eventsData.map(e => e.id)
+      const { data: attendeesData } = await supabase
+        .from('event_attendees')
+        .select('*, profiles!user_id(full_name, avatar_url)')
+        .in('event_id', eventIds)
+
+      const grouped: Record<string, EventAttendee[]> = {}
+      for (const a of attendeesData ?? []) {
+        if (!grouped[a.event_id]) grouped[a.event_id] = []
+        grouped[a.event_id].push(a as EventAttendee)
+      }
+      setAttendees(grouped)
+    }
     setLoading(false)
   }
 
@@ -127,8 +164,28 @@ export default function CalendarPage() {
     } else {
       const household_id = await getHouseholdId(supabase)
       if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
-      const { error } = await supabase.from('events').insert({ ...payload, household_id })
+      const { data, error } = await supabase.from('events')
+        .insert({ ...payload, household_id })
+        .select()
+        .single()
       if (error) { toast.error(error.message); return }
+      if (data && currentUserId) {
+        await Promise.all([
+          supabase.from('event_attendees').insert({
+            event_id: data.id,
+            user_id: currentUserId,
+            household_id,
+            status: 'attending',
+          }),
+          supabase.from('activity_log').insert({
+            household_id,
+            user_id: currentUserId,
+            action_type: 'event_created',
+            entity_id: data.id,
+            entity_title: data.title,
+          }),
+        ])
+      }
     }
     setShowModal(false)
     load()
@@ -138,6 +195,35 @@ export default function CalendarPage() {
     if (!confirm('Delete this event?')) return
     await supabase.from('events').delete().eq('id', id)
     load()
+  }
+
+  async function setRsvp(eventId: string, status: 'attending' | 'declined' | 'maybe') {
+    if (!currentUserId) return
+    const household_id = await getHouseholdId(supabase)
+    if (!household_id) return
+
+    const { error } = await supabase.from('event_attendees').upsert(
+      { event_id: eventId, user_id: currentUserId, household_id, status },
+      { onConflict: 'event_id,user_id' }
+    )
+    if (error) { toast.error(error.message); return }
+
+    setAttendees(prev => {
+      const current = prev[eventId] ?? []
+      const existing = current.find(a => a.user_id === currentUserId)
+      if (existing) {
+        return { ...prev, [eventId]: current.map(a => a.user_id === currentUserId ? { ...a, status } : a) }
+      }
+      const newEntry: EventAttendee = {
+        id: crypto.randomUUID(),
+        event_id: eventId,
+        user_id: currentUserId,
+        household_id,
+        status,
+        created_at: new Date().toISOString(),
+      }
+      return { ...prev, [eventId]: [...current, newEntry] }
+    })
   }
 
   const selectedEvents = eventsForDate(selectedDate)
@@ -212,36 +298,81 @@ export default function CalendarPage() {
           ) : selectedEvents.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No events this day.</p>
           ) : (
-            <div className="space-y-2">
-              {selectedEvents.map(e => (
-                <div key={e.id} className={cn('p-3 rounded-lg border text-sm', COLOR_CLASSES[e.color] ?? COLOR_CLASSES.blue)}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">{e.title}</p>
-                      {!e.all_day && (
-                        <p className="flex items-center gap-1 text-xs mt-0.5 opacity-80">
-                          <Clock className="h-3 w-3" />
-                          {new Date(e.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                          {e.end_time && ` – ${new Date(e.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
-                        </p>
-                      )}
-                      {e.location && (
-                        <p className="flex items-center gap-1 text-xs mt-0.5 opacity-80">
-                          <MapPin className="h-3 w-3" /> {e.location}
-                        </p>
-                      )}
+            <div className="space-y-3">
+              {selectedEvents.map(e => {
+                const eventAttendees = attendees[e.id] ?? []
+                const myRsvp = eventAttendees.find(a => a.user_id === currentUserId)
+                const othersRsvp = eventAttendees.filter(a => a.user_id !== currentUserId)
+                return (
+                  <div key={e.id} className={cn('p-3 rounded-lg border text-sm', COLOR_CLASSES[e.color] ?? COLOR_CLASSES.blue)}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{e.title}</p>
+                        {!e.all_day && (
+                          <p className="flex items-center gap-1 text-xs mt-0.5 opacity-80">
+                            <Clock className="h-3 w-3" />
+                            {new Date(e.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            {e.end_time && ` – ${new Date(e.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                          </p>
+                        )}
+                        {e.location && (
+                          <p className="flex items-center gap-1 text-xs mt-0.5 opacity-80">
+                            <MapPin className="h-3 w-3" /> {e.location}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => openEdit(e)} className="p-1 rounded hover:bg-black/10 transition-colors">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => remove(e.id)} className="p-1 rounded hover:bg-black/10 transition-colors">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      <button onClick={() => openEdit(e)} className="p-1 rounded hover:bg-black/10 transition-colors">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => remove(e.id)} className="p-1 rounded hover:bg-black/10 transition-colors">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+
+                    {/* RSVP section */}
+                    <div className="mt-2.5 pt-2.5 border-t border-current/10">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex gap-1">
+                          {(['attending', 'maybe', 'declined'] as const).map(status => (
+                            <button
+                              key={status}
+                              onClick={() => setRsvp(e.id, status)}
+                              title={status.charAt(0).toUpperCase() + status.slice(1)}
+                              className={cn(
+                                'p-1 rounded-md border transition-colors',
+                                myRsvp?.status === status
+                                  ? RSVP_STATUS_STYLE[status]
+                                  : 'bg-white/40 border-current/20 hover:bg-white/60'
+                              )}
+                            >
+                              {status === 'attending' && <Check className="h-3 w-3" />}
+                              {status === 'maybe' && <Minus className="h-3 w-3" />}
+                              {status === 'declined' && <XIcon className="h-3 w-3" />}
+                            </button>
+                          ))}
+                          {!myRsvp && (
+                            <span className="text-xs opacity-60 self-center ml-1">Your RSVP</span>
+                          )}
+                        </div>
+                        {othersRsvp.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            {othersRsvp.map(a => (
+                              <div key={a.id} className="flex items-center gap-1" title={`${a.profiles?.full_name ?? 'Partner'}: ${a.status}`}>
+                                <div className="w-5 h-5 rounded-full bg-white/60 border border-current/20 flex items-center justify-center text-xs font-bold">
+                                  {initials(a.profiles?.full_name)}
+                                </div>
+                                <span className={cn('w-2 h-2 rounded-full', RSVP_DOT[a.status])} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
