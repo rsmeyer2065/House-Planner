@@ -154,3 +154,33 @@ export type Note = {
   created_at: string
   updated_at: string
 }
+
+export type ActivityActionType =
+  | 'task_completed'
+  | 'task_created'
+  | 'transaction_added'
+  | 'shopping_checked'
+  | 'note_created'
+  | 'project_created'
+  | 'event_created'
+
+export type ActivityLogEntry = {
+  id: string
+  household_id: string
+  user_id: string | null
+  action_type: ActivityActionType
+  entity_id: string | null
+  entity_title: string | null
+  created_at: string
+  profiles?: { full_name: string | null; avatar_url: string | null } | null
+}
+
+export type EventAttendee = {
+  id: string
+  event_id: string
+  user_id: string
+  household_id: string
+  status: 'attending' | 'declined' | 'maybe'
+  created_at: string
+  profiles?: { full_name: string | null; avatar_url: string | null } | null
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import type { ShoppingList, ShoppingItem } from '@/lib/types'
@@ -17,8 +17,11 @@ export default function ShoppingPage() {
   const [listName, setListName] = useState('')
   const [newItem, setNewItem] = useState({ name: '', quantity: '', category: '' })
   const [showItemForm, setShowItemForm] = useState(false)
+  const [isLive, setIsLive] = useState(false)
 
   const supabase = createClient()
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const listsRef = useRef<ShoppingList[]>([])
 
   async function load() {
     const { data: listsData } = await supabase
@@ -26,6 +29,7 @@ export default function ShoppingPage() {
       .select('*')
       .order('created_at', { ascending: false })
     setLists(listsData ?? [])
+    listsRef.current = listsData ?? []
 
     if (listsData && listsData.length > 0) {
       const ids = listsData.map(l => l.id)
@@ -49,7 +53,51 @@ export default function ShoppingPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load().then(() => {
+      const channel = supabase.channel('shopping-realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'shopping_items' },
+          (payload) => {
+            const listId =
+              (payload.new as ShoppingItem)?.list_id ??
+              (payload.old as Partial<ShoppingItem>)?.list_id
+
+            if (!listId || !listsRef.current.find(l => l.id === listId)) return
+
+            setItems(prev => {
+              const current = prev[listId] ?? []
+              if (payload.eventType === 'INSERT') {
+                const newRow = payload.new as ShoppingItem
+                if (current.find(i => i.id === newRow.id)) return prev
+                return { ...prev, [listId]: [...current, newRow] }
+              }
+              if (payload.eventType === 'UPDATE') {
+                const updated = payload.new as ShoppingItem
+                return { ...prev, [listId]: current.map(i => i.id === updated.id ? updated : i) }
+              }
+              if (payload.eventType === 'DELETE') {
+                const deleted = payload.old as Partial<ShoppingItem>
+                return { ...prev, [listId]: current.filter(i => i.id !== deleted.id) }
+              }
+              return prev
+            })
+          }
+        )
+        .subscribe((status) => {
+          setIsLive(status === 'SUBSCRIBED')
+        })
+
+      channelRef.current = channel
+    })
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+      }
+    }
+  }, [])
 
   async function createList() {
     if (!listName.trim()) return
@@ -86,17 +134,27 @@ export default function ShoppingPage() {
     if (error) { toast.error(error.message); return }
     setNewItem({ name: '', quantity: '', category: '' })
     setShowItemForm(false)
-    load()
   }
 
   async function toggleItem(item: ShoppingItem) {
     await supabase.from('shopping_items').update({ checked: !item.checked }).eq('id', item.id)
-    load()
+
+    if (!item.checked) {
+      const { data: { user } } = await supabase.auth.getUser()
+      const household_id = await getHouseholdId(supabase)
+      if (user && household_id) {
+        await supabase.from('activity_log').insert({
+          household_id,
+          user_id: user.id,
+          action_type: 'shopping_checked',
+          entity_title: item.name,
+        })
+      }
+    }
   }
 
   async function deleteItem(id: string) {
     await supabase.from('shopping_items').delete().eq('id', id)
-    load()
   }
 
   async function clearChecked() {
@@ -104,7 +162,6 @@ export default function ShoppingPage() {
     const checked = (items[selectedList] ?? []).filter(i => i.checked).map(i => i.id)
     if (checked.length === 0) return
     await supabase.from('shopping_items').delete().in('id', checked)
-    load()
   }
 
   const currentItems = selectedList ? (items[selectedList] ?? []) : []
@@ -113,7 +170,15 @@ export default function ShoppingPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Shopping</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">Shopping</h1>
+          {isLive && (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              Live
+            </span>
+          )}
+        </div>
         <button
           onClick={() => setShowListModal(true)}
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
@@ -219,7 +284,6 @@ export default function ShoppingPage() {
                 <p className="text-center text-muted-foreground py-8 text-sm">No items yet. Add one above!</p>
               ) : (
                 <div className="space-y-1">
-                  {/* Group by category */}
                   {Object.entries(
                     currentItems.reduce<Record<string, ShoppingItem[]>>((acc, item) => {
                       const key = item.category ?? 'Other'

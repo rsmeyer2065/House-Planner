@@ -3,16 +3,14 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import type { Task, ActivityLogEntry } from '@/lib/types'
 import {
-  Hammer,
-  CheckSquare2,
-  CalendarDays,
-  Wallet,
-  ShoppingCart,
-  Phone,
-  Package,
-  StickyNote,
+  Hammer, CheckSquare2, CalendarDays, Wallet,
+  ShoppingCart, Phone, Package, StickyNote,
+  Activity, Clock,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { formatDistanceToNow } from 'date-fns'
 
 type Stats = {
   projects: number
@@ -25,12 +23,30 @@ type Stats = {
   notes: number
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  task_completed: 'completed task',
+  task_created: 'added task',
+  transaction_added: 'logged expense',
+  shopping_checked: 'checked off',
+  note_created: 'added a note',
+  project_created: 'started project',
+  event_created: 'scheduled',
+}
+
+function initials(name: string | null | undefined) {
+  if (!name) return '?'
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({
     projects: 0, tasks: 0, events: 0, monthExpenses: 0,
     shopping: 0, contacts: 0, inventory: 0, notes: 0,
   })
+  const [myTasks, setMyTasks] = useState<Task[]>([])
+  const [activity, setActivity] = useState<ActivityLogEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [sideLoading, setSideLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
@@ -68,7 +84,36 @@ export default function DashboardPage() {
       })
       setLoading(false)
     }
+
+    async function loadSide() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setSideLoading(false); return }
+
+      const today = new Date().toISOString().slice(0, 10)
+      const weekOut = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)
+
+      const [myTasksRes, activityRes] = await Promise.all([
+        supabase.from('tasks')
+          .select('*')
+          .eq('assigned_to', user.id)
+          .eq('status', 'pending')
+          .or(`due_date.lte.${weekOut},due_date.is.null`)
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .limit(5),
+        supabase.from('activity_log')
+          .select('*, profiles!user_id(full_name, avatar_url)')
+          .order('created_at', { ascending: false })
+          .limit(15),
+      ])
+
+      setMyTasks(myTasksRes.data ?? [])
+      setActivity((activityRes.data ?? []) as ActivityLogEntry[])
+      setSideLoading(false)
+    }
+
     load()
+    loadSide()
   }, [])
 
   const cards = [
@@ -111,6 +156,95 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+
+      <div className="grid md:grid-cols-2 gap-6 mt-6">
+        {/* My Tasks */}
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold flex items-center gap-2">
+              <CheckSquare2 className="h-4 w-4 text-orange-500" />
+              My Tasks
+            </h2>
+            <Link href="/tasks" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              View all →
+            </Link>
+          </div>
+
+          {sideLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />)}
+            </div>
+          ) : myTasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No tasks assigned to you this week.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {myTasks.map(t => {
+                const overdue = t.due_date && new Date(t.due_date) < new Date()
+                return (
+                  <div key={t.id} className="flex items-center gap-2 py-2 px-1 rounded-lg hover:bg-muted/50">
+                    <CheckSquare2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{t.title}</p>
+                      {t.due_date && (
+                        <p className={cn('text-xs', overdue ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                          {overdue ? 'Overdue · ' : 'Due '}{t.due_date}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Activity Feed */}
+        <div className="rounded-xl border bg-card p-4">
+          <h2 className="font-semibold flex items-center gap-2 mb-3">
+            <Activity className="h-4 w-4 text-primary" />
+            Recent Activity
+          </h2>
+
+          {sideLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map(i => <div key={i} className="h-8 rounded-lg bg-muted animate-pulse" />)}
+            </div>
+          ) : activity.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No activity yet. Start adding tasks, events, or notes!
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {activity.map(entry => {
+                const name = entry.profiles?.full_name ?? 'Someone'
+                const label = ACTION_LABELS[entry.action_type] ?? entry.action_type
+                const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })
+                return (
+                  <div key={entry.id} className="flex items-start gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                      {initials(name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm leading-snug">
+                        <span className="font-medium">{name}</span>{' '}
+                        <span className="text-muted-foreground">{label}</span>
+                        {entry.entity_title && (
+                          <> <span className="font-medium">"{entry.entity_title}"</span></>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Clock className="h-3 w-3" /> {timeAgo}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

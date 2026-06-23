@@ -90,8 +90,17 @@ export default function NotesPage() {
     } else {
       const household_id = await getHouseholdId(supabase)
       if (!household_id) { toast.error('No household found — finish setup in Settings first.'); return }
+      const { data: { user } } = await supabase.auth.getUser()
       const { error } = await supabase.from('notes').insert({ ...payload, pinned: false, household_id })
       if (error) { toast.error(error.message); return }
+      if (user) {
+        await supabase.from('activity_log').insert({
+          household_id,
+          user_id: user.id,
+          action_type: 'note_created',
+          entity_title: payload.title ?? payload.content.slice(0, 60),
+        })
+      }
     }
     setShowModal(false)
     load()
