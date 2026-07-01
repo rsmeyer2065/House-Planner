@@ -7,33 +7,20 @@ import type { CalendarEvent, EventAttendee, RecurrenceType } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight, MapPin, Clock, Check, Minus, X as XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import {
+  RAISED_SM, CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, ICON_BTN,
+  MODAL_OVERLAY, MODAL_PANEL, hexFor,
+} from '@/lib/neu'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 const EVENT_COLORS = ['blue', 'green', 'red', 'purple', 'orange', 'pink', 'teal', 'yellow']
 
-const COLOR_CLASSES: Record<string, string> = {
-  blue: 'bg-blue-100 text-blue-800 border-blue-200',
-  green: 'bg-green-100 text-green-800 border-green-200',
-  red: 'bg-red-100 text-red-800 border-red-200',
-  purple: 'bg-purple-100 text-purple-800 border-purple-200',
-  orange: 'bg-orange-100 text-orange-800 border-orange-200',
-  pink: 'bg-pink-100 text-pink-800 border-pink-200',
-  teal: 'bg-teal-100 text-teal-800 border-teal-200',
-  yellow: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-}
-
-const RSVP_STATUS_STYLE: Record<string, string> = {
-  attending: 'bg-green-100 text-green-700 border-green-200',
-  declined: 'bg-red-100 text-red-700 border-red-200',
-  maybe: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-}
-
-const RSVP_DOT: Record<string, string> = {
-  attending: 'bg-green-500',
-  declined: 'bg-red-500',
-  maybe: 'bg-yellow-500',
+const RSVP_HEX: Record<string, string> = {
+  attending: '#7c9a6e',
+  declined: '#b5574a',
+  maybe: '#bd9038',
 }
 
 type FormData = {
@@ -229,33 +216,30 @@ export default function CalendarPage() {
   const selectedEvents = eventsForDate(selectedDate)
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Calendar</h1>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> Add Event
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Calendar</h1>
+        <button onClick={openAdd} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> Add Event
         </button>
       </div>
 
-      <div className="grid md:grid-cols-[1fr_320px] gap-6">
+      <div className="grid md:grid-cols-[1fr_320px] gap-5">
         {/* Calendar grid */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className={cn('p-5', CARD)}>
           <div className="flex items-center justify-between mb-4">
-            <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-muted transition-colors">
+            <button onClick={prevMonth} className={ICON_BTN}>
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <h2 className="font-semibold">{MONTHS[month]} {year}</h2>
-            <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-muted transition-colors">
+            <h2 className="font-extrabold text-[#4b3a2f]">{MONTHS[month]} {year}</h2>
+            <button onClick={nextMonth} className={ICON_BTN}>
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
           <div className="grid grid-cols-7 mb-2">
             {DAYS.map(d => (
-              <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
+              <div key={d} className="text-center text-xs font-extrabold text-[#a58b78] py-1">{d}</div>
             ))}
           </div>
 
@@ -272,13 +256,17 @@ export default function CalendarPage() {
                   key={day}
                   onClick={() => setSelectedDate(dateStr)}
                   className={cn(
-                    'relative flex flex-col items-center py-1.5 rounded-lg text-sm transition-colors',
-                    isSelected ? 'bg-primary text-primary-foreground' : isToday ? 'bg-muted font-semibold' : 'hover:bg-muted/60'
+                    'relative flex flex-col items-center py-1.5 rounded-xl text-sm font-bold transition-shadow text-[#6a5647]',
+                    isSelected
+                      ? 'bg-[#c1673f] text-[#faf1e9] shadow-[3px_3px_8px_#ccb5a5,-2px_-2px_6px_#f7ebe1]'
+                      : isToday
+                        ? 'shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1] text-[#4b3a2f]'
+                        : 'hover:shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1]'
                   )}
                 >
                   {day}
                   {dayEvents.length > 0 && (
-                    <span className={cn('w-1.5 h-1.5 rounded-full mt-0.5', isSelected ? 'bg-primary-foreground' : 'bg-primary')} />
+                    <span className={cn('w-1.5 h-1.5 rounded-full mt-0.5', isSelected ? 'bg-[#faf1e9]' : 'bg-[#c1673f]')} />
                   )}
                 </button>
               )
@@ -287,52 +275,53 @@ export default function CalendarPage() {
         </div>
 
         {/* Events for selected day */}
-        <div className="rounded-xl border bg-card p-4">
-          <h3 className="font-semibold mb-3 text-sm text-muted-foreground">
+        <div className={cn('p-5', CARD)}>
+          <h3 className="font-extrabold mb-3 text-sm text-[#a58b78]">
             {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </h3>
           {loading ? (
             <div className="space-y-2">
-              {[1, 2].map(i => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}
+              {[1, 2].map(i => <div key={i} className="h-16 rounded-xl bg-[#dcc8ba] animate-pulse" />)}
             </div>
           ) : selectedEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No events this day.</p>
+            <p className="text-sm font-semibold text-[#a58b78] text-center py-8">No events this day.</p>
           ) : (
             <div className="space-y-3">
               {selectedEvents.map(e => {
                 const eventAttendees = attendees[e.id] ?? []
                 const myRsvp = eventAttendees.find(a => a.user_id === currentUserId)
                 const othersRsvp = eventAttendees.filter(a => a.user_id !== currentUserId)
+                const eventHex = hexFor(e.color)
                 return (
-                  <div key={e.id} className={cn('p-3 rounded-lg border text-sm', COLOR_CLASSES[e.color] ?? COLOR_CLASSES.blue)}>
+                  <div key={e.id} className={cn('p-3.5 rounded-2xl bg-[#e6d6ca] text-sm', RAISED_SM)}>
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium">{e.title}</p>
+                      <div className="flex-1 min-w-0 border-l-[3px] pl-2.5" style={{ borderColor: eventHex }}>
+                        <p className="font-extrabold text-[#4b3a2f]">{e.title}</p>
                         {!e.all_day && (
-                          <p className="flex items-center gap-1 text-xs mt-0.5 opacity-80">
+                          <p className="flex items-center gap-1 text-xs mt-0.5 font-bold text-[#a58b78]">
                             <Clock className="h-3 w-3" />
                             {new Date(e.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                             {e.end_time && ` – ${new Date(e.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
                           </p>
                         )}
                         {e.location && (
-                          <p className="flex items-center gap-1 text-xs mt-0.5 opacity-80">
+                          <p className="flex items-center gap-1 text-xs mt-0.5 font-bold text-[#a58b78]">
                             <MapPin className="h-3 w-3" /> {e.location}
                           </p>
                         )}
                       </div>
                       <div className="flex gap-1 shrink-0">
-                        <button onClick={() => openEdit(e)} className="p-1 rounded hover:bg-black/10 transition-colors">
+                        <button onClick={() => openEdit(e)} className={ICON_BTN}>
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => remove(e.id)} className="p-1 rounded hover:bg-black/10 transition-colors">
+                        <button onClick={() => remove(e.id)} className={ICON_BTN}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </div>
 
                     {/* RSVP section */}
-                    <div className="mt-2.5 pt-2.5 border-t border-current/10">
+                    <div className="mt-2.5 pt-2.5 border-t border-[rgba(150,120,95,0.16)]">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex gap-1">
                           {(['attending', 'maybe', 'declined'] as const).map(status => (
@@ -341,11 +330,12 @@ export default function CalendarPage() {
                               onClick={() => setRsvp(e.id, status)}
                               title={status.charAt(0).toUpperCase() + status.slice(1)}
                               className={cn(
-                                'p-1 rounded-md border transition-colors',
+                                'p-1.5 rounded-lg transition-shadow',
                                 myRsvp?.status === status
-                                  ? RSVP_STATUS_STYLE[status]
-                                  : 'bg-white/40 border-current/20 hover:bg-white/60'
+                                  ? 'shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1]'
+                                  : 'shadow-[2px_2px_5px_#ccb5a5,-2px_-2px_5px_#f7ebe1] hover:shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1]'
                               )}
+                              style={{ color: myRsvp?.status === status ? RSVP_HEX[status] : '#a58b78' }}
                             >
                               {status === 'attending' && <Check className="h-3 w-3" />}
                               {status === 'maybe' && <Minus className="h-3 w-3" />}
@@ -353,17 +343,17 @@ export default function CalendarPage() {
                             </button>
                           ))}
                           {!myRsvp && (
-                            <span className="text-xs opacity-60 self-center ml-1">Your RSVP</span>
+                            <span className="text-xs font-semibold text-[#b09a86] self-center ml-1">Your RSVP</span>
                           )}
                         </div>
                         {othersRsvp.length > 0 && (
                           <div className="flex items-center gap-1">
                             {othersRsvp.map(a => (
                               <div key={a.id} className="flex items-center gap-1" title={`${a.profiles?.full_name ?? 'Partner'}: ${a.status}`}>
-                                <div className="w-5 h-5 rounded-full bg-white/60 border border-current/20 flex items-center justify-center text-xs font-bold">
+                                <div className={cn('w-5 h-5 rounded-full bg-[#e6d6ca] flex items-center justify-center text-[10px] font-black text-[#8a7462]', RAISED_SM)}>
                                   {initials(a.profiles?.full_name)}
                                 </div>
-                                <span className={cn('w-2 h-2 rounded-full', RSVP_DOT[a.status])} />
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: RSVP_HEX[a.status] }} />
                               </div>
                             ))}
                           </div>
@@ -379,19 +369,17 @@ export default function CalendarPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-md')}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editing ? 'Edit Event' : 'New Event'}</h2>
-              <button onClick={() => setShowModal(false)}>
-                <X className="h-5 w-5 text-muted-foreground" />
-              </button>
+              <h2 className="text-lg font-black text-[#4b3a2f]">{editing ? 'Edit Event' : 'New Event'}</h2>
+              <button onClick={() => setShowModal(false)} className={ICON_BTN}><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium mb-1 block">Title *</label>
+                <label className={LABEL}>Title *</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   placeholder="Event title"
@@ -403,52 +391,52 @@ export default function CalendarPage() {
                   id="all_day"
                   checked={form.all_day}
                   onChange={e => setForm(f => ({ ...f, all_day: e.target.checked }))}
-                  className="rounded"
+                  className="rounded accent-[#c1673f]"
                 />
-                <label htmlFor="all_day" className="text-sm font-medium">All day</label>
+                <label htmlFor="all_day" className="text-sm font-bold text-[#4b3a2f]">All day</label>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Start</label>
+                  <label className={LABEL}>Start</label>
                   <input
                     type={form.all_day ? 'date' : 'datetime-local'}
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.all_day ? form.start_time.slice(0, 10) : form.start_time}
                     onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">End</label>
+                  <label className={LABEL}>End</label>
                   <input
                     type={form.all_day ? 'date' : 'datetime-local'}
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.all_day ? form.end_time.slice(0, 10) : form.end_time}
                     onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))}
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Location</label>
+                <label className={LABEL}>Location</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.location}
                   onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
                   placeholder="Optional location"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Description</label>
+                <label className={LABEL}>Description</label>
                 <textarea
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none h-16 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={cn(INPUT, 'resize-none h-16')}
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Color</label>
+                  <label className={LABEL}>Color</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary capitalize"
+                    className={cn(INPUT, 'capitalize')}
                     value={form.color}
                     onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
                   >
@@ -456,9 +444,9 @@ export default function CalendarPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Recurrence</label>
+                  <label className={LABEL}>Recurrence</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.recurrence}
                     onChange={e => setForm(f => ({ ...f, recurrence: e.target.value as RecurrenceType }))}
                   >
@@ -472,16 +460,10 @@ export default function CalendarPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
-              >
+              <button onClick={() => setShowModal(false)} className={cn(BTN_GHOST, 'flex-1')}>
                 Cancel
               </button>
-              <button
-                onClick={save}
-                className="flex-1 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
-              >
+              <button onClick={save} className={cn(BTN_PRIMARY, 'flex-1')}>
                 {editing ? 'Save Changes' : 'Create Event'}
               </button>
             </div>

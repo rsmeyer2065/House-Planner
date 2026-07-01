@@ -7,6 +7,10 @@ import type { Contact } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, Phone, Mail, Globe, MapPin, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import {
+  CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, ICON_BTN, ICON_BTN_DANGER,
+  pillClass, BADGE, MODAL_OVERLAY, MODAL_PANEL,
+} from '@/lib/neu'
 
 const CATEGORIES = ['plumber', 'electrician', 'contractor', 'cleaner', 'landscaper', 'hvac', 'doctor', 'dentist', 'vet', 'neighbor', 'family', 'friend', 'other']
 
@@ -26,20 +30,20 @@ const EMPTY_FORM: FormData = {
   website: '', address: '', notes: '', last_service_date: '',
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  plumber: 'bg-blue-100 text-blue-700',
-  electrician: 'bg-yellow-100 text-yellow-700',
-  contractor: 'bg-orange-100 text-orange-700',
-  cleaner: 'bg-green-100 text-green-700',
-  landscaper: 'bg-emerald-100 text-emerald-700',
-  hvac: 'bg-cyan-100 text-cyan-700',
-  doctor: 'bg-red-100 text-red-700',
-  dentist: 'bg-pink-100 text-pink-700',
-  vet: 'bg-purple-100 text-purple-700',
-  neighbor: 'bg-indigo-100 text-indigo-700',
-  family: 'bg-rose-100 text-rose-700',
-  friend: 'bg-teal-100 text-teal-700',
-  other: 'bg-gray-100 text-gray-700',
+const CATEGORY_HEX: Record<string, string> = {
+  plumber: '#7d93a0',
+  electrician: '#bd9038',
+  contractor: '#c47a3d',
+  cleaner: '#7c9a6e',
+  landscaper: '#7c9a6e',
+  hvac: '#6e9a92',
+  doctor: '#b5574a',
+  dentist: '#bd6b6f',
+  vet: '#957a9e',
+  neighbor: '#a07a52',
+  family: '#bf6a48',
+  friend: '#6e9a92',
+  other: '#a58b78',
 }
 
 export default function ContactsPage() {
@@ -123,22 +127,19 @@ export default function ContactsPage() {
   const usedCategories = ['all', ...Array.from(new Set(contacts.map(c => c.category)))]
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Contacts</h1>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> Add Contact
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Contacts</h1>
+        <button onClick={openAdd} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> Add Contact
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#b09a86]" />
           <input
-            className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            className={cn(INPUT, 'pl-10')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search contacts..."
@@ -146,16 +147,7 @@ export default function ContactsPage() {
         </div>
         <div className="flex gap-2 flex-wrap">
           {usedCategories.map(c => (
-            <button
-              key={c}
-              onClick={() => setCatFilter(c)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize',
-                catFilter === c
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-border text-muted-foreground hover:border-foreground'
-              )}
-            >
+            <button key={c} onClick={() => setCatFilter(c)} className={pillClass(catFilter === c)}>
               {c}
             </button>
           ))}
@@ -164,53 +156,53 @@ export default function ContactsPage() {
 
       {loading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-36 rounded-xl bg-muted animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-36 rounded-[22px] bg-[#dcc8ba] animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">No contacts found.</div>
+        <div className="text-center py-16 text-[#a58b78] font-semibold">No contacts found.</div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(c => (
-            <div key={c.id} className="p-4 rounded-xl border bg-card">
+            <div key={c.id} className={cn('p-4', CARD)}>
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
-                  <h3 className="font-semibold text-foreground">{c.name}</h3>
-                  <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize', CATEGORY_COLORS[c.category] ?? CATEGORY_COLORS.other)}>
+                  <h3 className="font-extrabold text-[#4b3a2f]">{c.name}</h3>
+                  <span className={cn(BADGE, 'mt-1')} style={{ color: CATEGORY_HEX[c.category] ?? CATEGORY_HEX.other }}>
                     {c.category}
                   </span>
                 </div>
-                <div className="flex gap-1 shrink-0">
-                  <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                <div className="flex gap-1.5 shrink-0">
+                  <button onClick={() => openEdit(c)} className={ICON_BTN}>
+                    <Pencil className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => remove(c.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  <button onClick={() => remove(c.id)} className={ICON_BTN_DANGER}>
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
               <div className="space-y-1.5">
                 {c.phone && (
-                  <a href={`tel:${c.phone}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <a href={`tel:${c.phone}`} className="flex items-center gap-2 text-sm font-semibold text-[#8a7462] hover:text-[#4b3a2f] transition-colors">
                     <Phone className="h-3.5 w-3.5 shrink-0" /> {c.phone}
                   </a>
                 )}
                 {c.email && (
-                  <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors truncate">
+                  <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-sm font-semibold text-[#8a7462] hover:text-[#4b3a2f] transition-colors truncate">
                     <Mail className="h-3.5 w-3.5 shrink-0" /> {c.email}
                   </a>
                 )}
                 {c.website && (
-                  <a href={c.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors truncate">
+                  <a href={c.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold text-[#8a7462] hover:text-[#4b3a2f] transition-colors truncate">
                     <Globe className="h-3.5 w-3.5 shrink-0" /> {c.website.replace(/^https?:\/\//, '')}
                   </a>
                 )}
                 {c.address && (
-                  <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <p className="flex items-start gap-2 text-sm font-semibold text-[#8a7462]">
                     <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {c.address}
                   </p>
                 )}
                 {c.last_service_date && (
-                  <p className="text-xs text-muted-foreground mt-2">Last service: {c.last_service_date}</p>
+                  <p className="text-xs font-bold text-[#b09a86] mt-2">Last service: {c.last_service_date}</p>
                 )}
               </div>
             </div>
@@ -219,27 +211,27 @@ export default function ContactsPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl w-full max-w-lg p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-lg')}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editing ? 'Edit Contact' : 'New Contact'}</h2>
-              <button onClick={() => setShowModal(false)}><X className="h-5 w-5 text-muted-foreground" /></button>
+              <h2 className="text-lg font-black text-[#4b3a2f]">{editing ? 'Edit Contact' : 'New Contact'}</h2>
+              <button onClick={() => setShowModal(false)} className={ICON_BTN}><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Name *</label>
+                  <label className={LABEL}>Name *</label>
                   <input
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="Full name or business"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Category</label>
+                  <label className={LABEL}>Category</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary capitalize"
+                    className={cn(INPUT, 'capitalize')}
                     value={form.category}
                     onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                   >
@@ -249,63 +241,63 @@ export default function ContactsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Phone</label>
+                  <label className={LABEL}>Phone</label>
                   <input
                     type="tel"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.phone}
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Email</label>
+                  <label className={LABEL}>Email</label>
                   <input
                     type="email"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.email}
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Website</label>
+                <label className={LABEL}>Website</label>
                 <input
                   type="url"
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.website}
                   onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
                   placeholder="https://"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Address</label>
+                <label className={LABEL}>Address</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Notes</label>
+                <label className={LABEL}>Notes</label>
                 <textarea
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none h-16 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={cn(INPUT, 'resize-none h-16')}
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Last Service Date</label>
+                <label className={LABEL}>Last Service Date</label>
                 <input
                   type="date"
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.last_service_date}
                   onChange={e => setForm(f => ({ ...f, last_service_date: e.target.value }))}
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowModal(false)} className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">Cancel</button>
-              <button onClick={save} className="flex-1 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">
+              <button onClick={() => setShowModal(false)} className={cn(BTN_GHOST, 'flex-1')}>Cancel</button>
+              <button onClick={save} className={cn(BTN_PRIMARY, 'flex-1')}>
                 {editing ? 'Save Changes' : 'Add Contact'}
               </button>
             </div>

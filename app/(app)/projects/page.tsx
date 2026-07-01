@@ -4,21 +4,25 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import type { Project, ProjectStatus, Priority } from '@/lib/types'
-import { Plus, X, Pencil, Trash2 } from 'lucide-react'
+import { Plus, X, Pencil, Trash2, Hammer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import {
+  RAISED_SM, CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL,
+  ICON_BTN, ICON_BTN_DANGER, pillClass, BADGE, MODAL_OVERLAY, MODAL_PANEL,
+} from '@/lib/neu'
 
-const STATUS_COLORS: Record<ProjectStatus, string> = {
-  planned: 'bg-gray-100 text-gray-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  completed: 'bg-green-100 text-green-700',
-  on_hold: 'bg-yellow-100 text-yellow-700',
+const STATUS_HEX: Record<ProjectStatus, string> = {
+  planned: '#a58b78',
+  in_progress: '#c47a3d',
+  completed: '#7c9a6e',
+  on_hold: '#bd6b6f',
 }
 
-const PRIORITY_COLORS: Record<Priority, string> = {
-  low: 'bg-green-100 text-green-700',
-  medium: 'bg-yellow-100 text-yellow-700',
-  high: 'bg-red-100 text-red-700',
+const PRIORITY_HEX: Record<Priority, string> = {
+  low: '#7c9a6e',
+  medium: '#c47a3d',
+  high: '#c1673f',
 }
 
 type FormData = {
@@ -113,58 +117,45 @@ export default function ProjectsPage() {
   const filtered = filter === 'all' ? projects : projects.filter(p => p.status === filter)
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Projects</h1>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> Add Project
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Projects</h1>
+        <button onClick={openAdd} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> Add Project
         </button>
       </div>
 
-      <div className="flex gap-2 mb-5 flex-wrap">
+      <div className="flex gap-2 flex-wrap">
         {(['all', 'planned', 'in_progress', 'completed', 'on_hold'] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={cn(
-              'px-3 py-1 rounded-full text-sm font-medium border transition-colors',
-              filter === s
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background border-border text-muted-foreground hover:border-foreground'
-            )}
-          >
-            {s === 'all' ? 'All' : s.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+          <button key={s} onClick={() => setFilter(s)} className={pillClass(filter === s)}>
+            {s === 'all' ? 'All' : s.replace('_', ' ')}
           </button>
         ))}
       </div>
 
       {loading ? (
         <div className="grid gap-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-[22px] bg-[#dcc8ba] animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">No projects found. Add one to get started!</div>
+        <div className="text-center py-16 text-[#a58b78] font-semibold">No projects found. Add one to get started!</div>
       ) : (
         <div className="grid gap-3">
           {filtered.map(p => (
-            <div key={p.id} className="flex items-start gap-4 p-4 rounded-xl border bg-card">
+            <div key={p.id} className={cn('flex items-start gap-4 p-5', CARD)}>
+              <div className={cn('w-11 h-11 rounded-2xl shrink-0 bg-[#e6d6ca] flex items-center justify-center text-[#bf6a48]', RAISED_SM)}>
+                <Hammer className="h-5 w-5" strokeWidth={2.25} />
+              </div>
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-foreground">{p.title}</h3>
-                  <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', STATUS_COLORS[p.status])}>
-                    {p.status.replace('_', ' ')}
-                  </span>
-                  <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', PRIORITY_COLORS[p.priority])}>
-                    {p.priority}
-                  </span>
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <h3 className="font-extrabold text-[#4b3a2f]">{p.title}</h3>
+                  <span className={BADGE} style={{ color: STATUS_HEX[p.status] }}>{p.status.replace('_', ' ')}</span>
+                  <span className={BADGE} style={{ color: PRIORITY_HEX[p.priority] }}>{p.priority}</span>
                 </div>
                 {p.description && (
-                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{p.description}</p>
+                  <p className="text-sm font-medium text-[#6a5647] mb-2 line-clamp-2">{p.description}</p>
                 )}
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-[#a58b78]">
                   <span>Category: {p.category}</span>
                   {p.estimated_cost != null && <span>Budget: ${Number(p.estimated_cost).toFixed(2)}</span>}
                   {p.actual_cost != null && <span>Actual: ${Number(p.actual_cost).toFixed(2)}</span>}
@@ -172,12 +163,12 @@ export default function ProjectsPage() {
                   {p.end_date && <span>End: {p.end_date}</span>}
                 </div>
               </div>
-              <div className="flex gap-1 shrink-0">
-                <button onClick={() => openEdit(p)} className="p-2 rounded-lg hover:bg-muted transition-colors">
-                  <Pencil className="h-4 w-4 text-muted-foreground" />
+              <div className="flex gap-1.5 shrink-0">
+                <button onClick={() => openEdit(p)} className={ICON_BTN}>
+                  <Pencil className="h-4 w-4" />
                 </button>
-                <button onClick={() => remove(p.id)} className="p-2 rounded-lg hover:bg-muted transition-colors">
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                <button onClick={() => remove(p.id)} className={ICON_BTN_DANGER}>
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -186,28 +177,28 @@ export default function ProjectsPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl w-full max-w-lg p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-lg')}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editing ? 'Edit Project' : 'New Project'}</h2>
-              <button onClick={() => setShowModal(false)}>
-                <X className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-black text-[#4b3a2f]">{editing ? 'Edit Project' : 'New Project'}</h2>
+              <button onClick={() => setShowModal(false)} className={ICON_BTN}>
+                <X className="h-4 w-4" />
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium mb-1 block">Title *</label>
+                <label className={LABEL}>Title *</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   placeholder="Project title"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Description</label>
+                <label className={LABEL}>Description</label>
                 <textarea
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={cn(INPUT, 'resize-none h-20')}
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   placeholder="Optional description"
@@ -215,9 +206,9 @@ export default function ProjectsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Status</label>
+                  <label className={LABEL}>Status</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.status}
                     onChange={e => setForm(f => ({ ...f, status: e.target.value as ProjectStatus }))}
                   >
@@ -228,9 +219,9 @@ export default function ProjectsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Priority</label>
+                  <label className={LABEL}>Priority</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.priority}
                     onChange={e => setForm(f => ({ ...f, priority: e.target.value as Priority }))}
                   >
@@ -241,9 +232,9 @@ export default function ProjectsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Category</label>
+                <label className={LABEL}>Category</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.category}
                   onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                   placeholder="e.g. Kitchen, Bathroom, Garden"
@@ -251,23 +242,23 @@ export default function ProjectsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Est. Cost ($)</label>
+                  <label className={LABEL}>Est. Cost ($)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.estimated_cost}
                     onChange={e => setForm(f => ({ ...f, estimated_cost: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Actual Cost ($)</label>
+                  <label className={LABEL}>Actual Cost ($)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.actual_cost}
                     onChange={e => setForm(f => ({ ...f, actual_cost: e.target.value }))}
                   />
@@ -275,19 +266,19 @@ export default function ProjectsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Start Date</label>
+                  <label className={LABEL}>Start Date</label>
                   <input
                     type="date"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.start_date}
                     onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">End Date</label>
+                  <label className={LABEL}>End Date</label>
                   <input
                     type="date"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.end_date}
                     onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
                   />
@@ -295,16 +286,10 @@ export default function ProjectsPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
-              >
+              <button onClick={() => setShowModal(false)} className={cn(BTN_GHOST, 'flex-1')}>
                 Cancel
               </button>
-              <button
-                onClick={save}
-                className="flex-1 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
-              >
+              <button onClick={save} className={cn(BTN_PRIMARY, 'flex-1')}>
                 {editing ? 'Save Changes' : 'Create Project'}
               </button>
             </div>
