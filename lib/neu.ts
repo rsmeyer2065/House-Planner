@@ -15,6 +15,11 @@ export const INSET_XS = 'shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#
 export const CARD = `rounded-[22px] bg-[#e6d6ca] ${RAISED_LG}`
 export const CARD_HOVER = `hover:bg-[#e9dacf] hover:shadow-[10px_10px_22px_#c7af9e,-10px_-10px_22px_#faf0e7]`
 
+/** Larger-radius panel used for major single-panel containers (calendar grid, big list panels). */
+export const CARD_LG = `rounded-[28px] bg-[#e6d6ca] ${RAISED_LG}`
+
+export const SUBTITLE = 'mt-1.5 text-[15px] font-semibold text-[#a58b78]'
+
 export const BTN_PRIMARY =
   'inline-flex items-center justify-center gap-2 border-0 cursor-pointer font-extrabold text-[14px] text-[#faf1e9] bg-[#c1673f] px-5 py-2.5 rounded-2xl shadow-[5px_5px_12px_#b07048,-4px_-4px_10px_#f7ebe1,inset_1px_1px_1px_rgba(255,255,255,0.25)] active:shadow-[inset_3px_3px_7px_#984e2c,inset_-2px_-2px_6px_#cf7550] active:bg-[#b25e38] transition-shadow disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap'
 

@@ -4,26 +4,38 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import type { Project, ProjectStatus, Priority } from '@/lib/types'
-import { Plus, X, Pencil, Trash2, Hammer } from 'lucide-react'
+import { Plus, X, Pencil, Trash2, Tag, Wallet, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
-  RAISED_SM, CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL,
-  ICON_BTN, ICON_BTN_DANGER, pillClass, BADGE, MODAL_OVERLAY, MODAL_PANEL,
+  CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, SUBTITLE,
+  ICON_BTN, MODAL_OVERLAY, MODAL_PANEL,
 } from '@/lib/neu'
 
-const STATUS_HEX: Record<ProjectStatus, string> = {
-  planned: '#a58b78',
-  in_progress: '#c47a3d',
-  completed: '#7c9a6e',
-  on_hold: '#bd6b6f',
+const STATUS_META: Record<ProjectStatus, { label: string; bar: string; chipBg: string; chipTx: string }> = {
+  planned: { label: 'Planned', bar: '#9a7b52', chipBg: '#e7ddce', chipTx: '#7a6142' },
+  in_progress: { label: 'In progress', bar: '#c1673f', chipBg: '#efd9cf', chipTx: '#a24e30' },
+  completed: { label: 'Completed', bar: '#6d8a52', chipBg: '#e2e5cf', chipTx: '#556f38' },
+  on_hold: { label: 'On hold', bar: '#b5843a', chipBg: '#eee0c7', chipTx: '#8f6a1f' },
 }
 
-const PRIORITY_HEX: Record<Priority, string> = {
-  low: '#7c9a6e',
-  medium: '#c47a3d',
-  high: '#c1673f',
+const PRIORITY_META: Record<Priority, { bg: string; tx: string }> = {
+  high: { bg: '#efd9cf', tx: '#bb5a48' },
+  medium: { bg: '#eee0c7', tx: '#a37a2f' },
+  low: { bg: '#e2e5cf', tx: '#6d8a52' },
 }
+
+function pctFor(p: Project): number {
+  if (p.status === 'completed') return 100
+  if (p.status === 'planned') return 0
+  if (p.status === 'on_hold') return 25
+  if (p.estimated_cost && p.actual_cost != null && p.estimated_cost > 0) {
+    return Math.min(95, Math.round((p.actual_cost / p.estimated_cost) * 100))
+  }
+  return 50
+}
+
+const fmt = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`
 
 type FormData = {
   title: string
@@ -119,60 +131,96 @@ export default function ProjectsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Projects</h1>
+        <div>
+          <h1 className="text-[32px] font-black tracking-tight text-[#4b3a2f]">Projects</h1>
+          <p className={SUBTITLE}>Home improvements, tracked from plan to done.</p>
+        </div>
         <button onClick={openAdd} className={BTN_PRIMARY}>
           <Plus className="h-4 w-4" strokeWidth={2.5} /> Add Project
         </button>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 p-1.5 rounded-2xl bg-[#e6d6ca] shadow-[inset_3px_3px_7px_#ccb5a5,inset_-3px_-3px_7px_#f7ebe1] self-start flex-wrap">
         {(['all', 'planned', 'in_progress', 'completed', 'on_hold'] as const).map(s => (
-          <button key={s} onClick={() => setFilter(s)} className={pillClass(filter === s)}>
-            {s === 'all' ? 'All' : s.replace('_', ' ')}
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            className={cn(
+              'border-0 cursor-pointer font-extrabold text-[13.5px] px-4 py-2 rounded-xl transition-shadow capitalize whitespace-nowrap',
+              filter === s
+                ? 'text-[#c1673f] bg-[#e6d6ca] shadow-[4px_4px_9px_#ccb5a5,-4px_-4px_9px_#f7ebe1]'
+                : 'text-[#9a8571] bg-transparent font-bold'
+            )}
+          >
+            {s === 'all' ? 'All' : STATUS_META[s].label}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="grid gap-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-[22px] bg-[#dcc8ba] animate-pulse" />)}
+        <div className="grid gap-3.5">
+          {[1, 2, 3].map(i => <div key={i} className="h-32 rounded-[22px] bg-[#dcc8ba] animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-[#a58b78] font-semibold">No projects found. Add one to get started!</div>
+        <div className="text-center py-16 text-[#a58b78] font-semibold rounded-[22px] shadow-[inset_4px_4px_10px_#ccb5a5,inset_-4px_-4px_10px_#f7ebe1] bg-[#e6d6ca]">
+          No projects here. Add one to get started!
+        </div>
       ) : (
-        <div className="grid gap-3">
-          {filtered.map(p => (
-            <div key={p.id} className={cn('flex items-start gap-4 p-5', CARD)}>
-              <div className={cn('w-11 h-11 rounded-2xl shrink-0 bg-[#e6d6ca] flex items-center justify-center text-[#bf6a48]', RAISED_SM)}>
-                <Hammer className="h-5 w-5" strokeWidth={2.25} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <h3 className="font-extrabold text-[#4b3a2f]">{p.title}</h3>
-                  <span className={BADGE} style={{ color: STATUS_HEX[p.status] }}>{p.status.replace('_', ' ')}</span>
-                  <span className={BADGE} style={{ color: PRIORITY_HEX[p.priority] }}>{p.priority}</span>
+        <div className="flex flex-col gap-3.5">
+          {filtered.map(p => {
+            const meta = STATUS_META[p.status]
+            const prio = PRIORITY_META[p.priority]
+            const pct = pctFor(p)
+            const hasBudget = p.estimated_cost != null || p.actual_cost != null
+            const hasDates = p.start_date || p.end_date
+            return (
+              <div key={p.id} className={cn('flex items-stretch gap-[18px] p-5', CARD)}>
+                <span className="w-1.5 rounded-full flex-none" style={{ backgroundColor: meta.bar }} />
+                <div className="flex-1 min-w-0 flex flex-col gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h3 className="text-[16.5px] font-black text-[#4b3a2f]">{p.title}</h3>
+                    <span className="text-[11.5px] font-extrabold px-2.5 py-1 rounded-full" style={{ backgroundColor: meta.chipBg, color: meta.chipTx }}>
+                      {meta.label}
+                    </span>
+                    <span className="text-[11.5px] font-extrabold px-2.5 py-1 rounded-full capitalize" style={{ backgroundColor: prio.bg, color: prio.tx }}>
+                      {p.priority}
+                    </span>
+                  </div>
+                  {p.description && (
+                    <p className="text-[13.5px] font-semibold text-[#8a7462] leading-relaxed line-clamp-2">{p.description}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-4 text-[12.5px] font-bold text-[#a58b78] mt-0.5">
+                    <span className="inline-flex items-center gap-1.5"><Tag className="h-[13px] w-[13px]" /> {p.category}</span>
+                    {hasBudget && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Wallet className="h-[13px] w-[13px]" />
+                        {fmt(Number(p.actual_cost ?? 0))} / {p.estimated_cost != null ? fmt(Number(p.estimated_cost)) : '—'}
+                      </span>
+                    )}
+                    {hasDates && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Calendar className="h-[13px] w-[13px]" /> {p.start_date ?? '—'} – {p.end_date ?? '—'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <div className="flex-1 h-2.5 rounded-full bg-[#e6d6ca] shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1] overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: meta.bar }} />
+                    </div>
+                    <span className="text-xs font-extrabold text-[#8a7462] min-w-[34px] text-right">{pct}%</span>
+                  </div>
                 </div>
-                {p.description && (
-                  <p className="text-sm font-medium text-[#6a5647] mb-2 line-clamp-2">{p.description}</p>
-                )}
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-[#a58b78]">
-                  <span>Category: {p.category}</span>
-                  {p.estimated_cost != null && <span>Budget: ${Number(p.estimated_cost).toFixed(2)}</span>}
-                  {p.actual_cost != null && <span>Actual: ${Number(p.actual_cost).toFixed(2)}</span>}
-                  {p.start_date && <span>Start: {p.start_date}</span>}
-                  {p.end_date && <span>End: {p.end_date}</span>}
+                <div className="flex flex-col gap-2 flex-none">
+                  <button onClick={() => openEdit(p)} className="w-[38px] h-[38px] rounded-xl bg-[#e6d6ca] text-[#8a7462] flex items-center justify-center shadow-[4px_4px_8px_#ccb5a5,-4px_-4px_8px_#f7ebe1] active:shadow-[inset_3px_3px_6px_#ccb5a5,inset_-3px_-3px_6px_#f7ebe1]">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => remove(p.id)} className="w-[38px] h-[38px] rounded-xl bg-[#e6d6ca] text-[#bb5a48] flex items-center justify-center shadow-[4px_4px_8px_#ccb5a5,-4px_-4px_8px_#f7ebe1] active:shadow-[inset_3px_3px_6px_#ccb5a5,inset_-3px_-3px_6px_#f7ebe1]">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-1.5 shrink-0">
-                <button onClick={() => openEdit(p)} className={ICON_BTN}>
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <button onClick={() => remove(p.id)} className={ICON_BTN_DANGER}>
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

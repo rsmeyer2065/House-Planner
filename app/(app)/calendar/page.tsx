@@ -8,19 +8,31 @@ import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight, MapPin, Clock, Chec
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
-  RAISED_SM, CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, ICON_BTN,
-  MODAL_OVERLAY, MODAL_PANEL, hexFor,
+  RAISED_SM, CARD_LG, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, SUBTITLE,
+  MODAL_OVERLAY, MODAL_PANEL,
 } from '@/lib/neu'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-const EVENT_COLORS = ['blue', 'green', 'red', 'purple', 'orange', 'pink', 'teal', 'yellow']
+const EVENT_COLORS = ['terracotta', 'amber', 'olive', 'rose', 'taupe']
+
+const EVENT_HEX: Record<string, string> = {
+  terracotta: '#c1673f',
+  amber: '#b5843a',
+  olive: '#7d8a4e',
+  rose: '#b56a5e',
+  taupe: '#9a7b52',
+}
+
+function eventHexFor(color: string | null | undefined) {
+  return (color && EVENT_HEX[color]) || EVENT_HEX.terracotta
+}
 
 const RSVP_HEX: Record<string, string> = {
-  attending: '#7c9a6e',
-  declined: '#b5574a',
-  maybe: '#bd9038',
+  attending: '#6d8a52',
+  declined: '#bb5a48',
+  maybe: '#b5843a',
 }
 
 type FormData = {
@@ -37,7 +49,7 @@ type FormData = {
 const EMPTY_FORM: FormData = {
   title: '', description: '', location: '',
   start_time: '', end_time: '', all_day: false,
-  color: 'blue', recurrence: 'none',
+  color: 'terracotta', recurrence: 'none',
 }
 
 function toLocalDateString(date: Date) {
@@ -218,33 +230,36 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Calendar</h1>
+        <div>
+          <h1 className="text-[32px] font-black tracking-tight text-[#4b3a2f]">Calendar</h1>
+          <p className={SUBTITLE}>Shared household events, with a tap to RSVP.</p>
+        </div>
         <button onClick={openAdd} className={BTN_PRIMARY}>
           <Plus className="h-4 w-4" strokeWidth={2.5} /> Add Event
         </button>
       </div>
 
-      <div className="grid md:grid-cols-[1fr_320px] gap-5">
+      <div className="grid md:grid-cols-[1fr_348px] gap-[22px] items-start">
         {/* Calendar grid */}
-        <div className={cn('p-5', CARD)}>
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={prevMonth} className={ICON_BTN}>
+        <div className={cn('p-6', CARD_LG)}>
+          <div className="flex items-center justify-between mb-5">
+            <button onClick={prevMonth} className="w-[42px] h-[42px] rounded-[13px] bg-[#e6d6ca] text-[#8a7462] flex items-center justify-center shadow-[4px_4px_9px_#ccb5a5,-4px_-4px_9px_#f7ebe1] active:shadow-[inset_3px_3px_6px_#ccb5a5,inset_-3px_-3px_6px_#f7ebe1]">
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <h2 className="font-extrabold text-[#4b3a2f]">{MONTHS[month]} {year}</h2>
-            <button onClick={nextMonth} className={ICON_BTN}>
+            <h2 className="font-black text-[19px] text-[#4b3a2f]">{MONTHS[month]} {year}</h2>
+            <button onClick={nextMonth} className="w-[42px] h-[42px] rounded-[13px] bg-[#e6d6ca] text-[#8a7462] flex items-center justify-center shadow-[4px_4px_9px_#ccb5a5,-4px_-4px_9px_#f7ebe1] active:shadow-[inset_3px_3px_6px_#ccb5a5,inset_-3px_-3px_6px_#f7ebe1]">
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 mb-2">
+          <div className="grid grid-cols-7 gap-2 mb-2.5">
             {DAYS.map(d => (
-              <div key={d} className="text-center text-xs font-extrabold text-[#a58b78] py-1">{d}</div>
+              <div key={d} className="text-center text-xs font-extrabold uppercase tracking-wide text-[#a58b78] py-1">{d}</div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} className="aspect-square" />)}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1
               const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -256,17 +271,19 @@ export default function CalendarPage() {
                   key={day}
                   onClick={() => setSelectedDate(dateStr)}
                   className={cn(
-                    'relative flex flex-col items-center py-1.5 rounded-xl text-sm font-bold transition-shadow text-[#6a5647]',
+                    'aspect-square rounded-[14px] flex flex-col items-center justify-center gap-[3px] transition-shadow',
                     isSelected
-                      ? 'bg-[#c1673f] text-[#faf1e9] shadow-[3px_3px_8px_#ccb5a5,-2px_-2px_6px_#f7ebe1]'
+                      ? 'bg-[#c1673f] shadow-[4px_4px_9px_#b07048,-3px_-3px_8px_#f7ebe1]'
                       : isToday
-                        ? 'shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1] text-[#4b3a2f]'
-                        : 'hover:shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1]'
+                        ? 'bg-[#e6d6ca] shadow-[inset_3px_3px_6px_#ccb5a5,inset_-3px_-3px_6px_#f7ebe1]'
+                        : 'hover:shadow-[inset_3px_3px_6px_#ccb5a5,inset_-3px_-3px_6px_#f7ebe1]'
                   )}
                 >
-                  {day}
+                  <span className={cn('text-[14.5px]', isSelected || isToday ? 'font-black' : 'font-bold', isSelected ? 'text-[#faf1e9]' : 'text-[#4b3a2f]')}>
+                    {day}
+                  </span>
                   {dayEvents.length > 0 && (
-                    <span className={cn('w-1.5 h-1.5 rounded-full mt-0.5', isSelected ? 'bg-[#faf1e9]' : 'bg-[#c1673f]')} />
+                    <span className={cn('w-[5px] h-[5px] rounded-full', isSelected ? 'bg-[#faf1e9]' : 'bg-[#c1673f]')} />
                   )}
                 </button>
               )
@@ -275,8 +292,8 @@ export default function CalendarPage() {
         </div>
 
         {/* Events for selected day */}
-        <div className={cn('p-5', CARD)}>
-          <h3 className="font-extrabold mb-3 text-sm text-[#a58b78]">
+        <div className={cn('p-6', CARD_LG)}>
+          <h3 className="mb-[18px] text-[13px] font-extrabold uppercase tracking-wide text-[#a58b78]">
             {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </h3>
           {loading ? (
@@ -284,81 +301,77 @@ export default function CalendarPage() {
               {[1, 2].map(i => <div key={i} className="h-16 rounded-xl bg-[#dcc8ba] animate-pulse" />)}
             </div>
           ) : selectedEvents.length === 0 ? (
-            <p className="text-sm font-semibold text-[#a58b78] text-center py-8">No events this day.</p>
+            <p className="text-sm font-semibold text-[#a58b78] text-center py-10">No events this day.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3.5">
               {selectedEvents.map(e => {
                 const eventAttendees = attendees[e.id] ?? []
                 const myRsvp = eventAttendees.find(a => a.user_id === currentUserId)
                 const othersRsvp = eventAttendees.filter(a => a.user_id !== currentUserId)
-                const eventHex = hexFor(e.color)
+                const hex = eventHexFor(e.color)
                 return (
-                  <div key={e.id} className={cn('p-3.5 rounded-2xl bg-[#e6d6ca] text-sm', RAISED_SM)}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0 border-l-[3px] pl-2.5" style={{ borderColor: eventHex }}>
-                        <p className="font-extrabold text-[#4b3a2f]">{e.title}</p>
+                  <div key={e.id} className={cn('rounded-[20px] p-4 bg-[#e6d6ca]', RAISED_SM)}>
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-[5px] self-stretch min-h-[42px] rounded-full flex-none" style={{ backgroundColor: hex }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[15.5px] font-extrabold text-[#4b3a2f]">{e.title}</p>
                         {!e.all_day && (
-                          <p className="flex items-center gap-1 text-xs mt-0.5 font-bold text-[#a58b78]">
-                            <Clock className="h-3 w-3" />
+                          <p className="flex items-center gap-1.5 text-[12.5px] mt-1.5 font-bold text-[#8a7462]">
+                            <Clock className="h-[13px] w-[13px]" />
                             {new Date(e.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                             {e.end_time && ` – ${new Date(e.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
                           </p>
                         )}
                         {e.location && (
-                          <p className="flex items-center gap-1 text-xs mt-0.5 font-bold text-[#a58b78]">
-                            <MapPin className="h-3 w-3" /> {e.location}
+                          <p className="flex items-center gap-1.5 text-[12.5px] mt-1 font-bold text-[#8a7462]">
+                            <MapPin className="h-[13px] w-[13px]" /> {e.location}
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-1 shrink-0">
-                        <button onClick={() => openEdit(e)} className={ICON_BTN}>
+                      <div className="flex gap-1.5 flex-none">
+                        <button onClick={() => openEdit(e)} className="w-[30px] h-[30px] rounded-[10px] bg-[#e6d6ca] text-[#8a7462] flex items-center justify-center shadow-[3px_3px_6px_#ccb5a5,-3px_-3px_6px_#f7ebe1] active:shadow-[inset_2px_2px_4px_#ccb5a5,inset_-2px_-2px_4px_#f7ebe1]">
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => remove(e.id)} className={ICON_BTN}>
+                        <button onClick={() => remove(e.id)} className="w-[30px] h-[30px] rounded-[10px] bg-[#e6d6ca] text-[#bb5a48] flex items-center justify-center shadow-[3px_3px_6px_#ccb5a5,-3px_-3px_6px_#f7ebe1] active:shadow-[inset_2px_2px_4px_#ccb5a5,inset_-2px_-2px_4px_#f7ebe1]">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </div>
 
                     {/* RSVP section */}
-                    <div className="mt-2.5 pt-2.5 border-t border-[rgba(150,120,95,0.16)]">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex gap-1">
-                          {(['attending', 'maybe', 'declined'] as const).map(status => (
-                            <button
-                              key={status}
-                              onClick={() => setRsvp(e.id, status)}
-                              title={status.charAt(0).toUpperCase() + status.slice(1)}
-                              className={cn(
-                                'p-1.5 rounded-lg transition-shadow',
-                                myRsvp?.status === status
-                                  ? 'shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1]'
-                                  : 'shadow-[2px_2px_5px_#ccb5a5,-2px_-2px_5px_#f7ebe1] hover:shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1]'
-                              )}
-                              style={{ color: myRsvp?.status === status ? RSVP_HEX[status] : '#a58b78' }}
-                            >
-                              {status === 'attending' && <Check className="h-3 w-3" />}
-                              {status === 'maybe' && <Minus className="h-3 w-3" />}
-                              {status === 'declined' && <XIcon className="h-3 w-3" />}
-                            </button>
-                          ))}
-                          {!myRsvp && (
-                            <span className="text-xs font-semibold text-[#b09a86] self-center ml-1">Your RSVP</span>
-                          )}
-                        </div>
-                        {othersRsvp.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            {othersRsvp.map(a => (
-                              <div key={a.id} className="flex items-center gap-1" title={`${a.profiles?.full_name ?? 'Partner'}: ${a.status}`}>
-                                <div className={cn('w-5 h-5 rounded-full bg-[#e6d6ca] flex items-center justify-center text-[10px] font-black text-[#8a7462]', RAISED_SM)}>
-                                  {initials(a.profiles?.full_name)}
-                                </div>
-                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: RSVP_HEX[a.status] }} />
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                    <div className="mt-3.5 pt-3.5 border-t border-[rgba(150,120,95,0.16)] flex items-center justify-between gap-2.5">
+                      <div className="flex gap-1.5">
+                        {(['attending', 'maybe', 'declined'] as const).map(status => (
+                          <button
+                            key={status}
+                            onClick={() => setRsvp(e.id, status)}
+                            title={status.charAt(0).toUpperCase() + status.slice(1)}
+                            className={cn(
+                              'w-8 h-8 rounded-[10px] flex items-center justify-center transition-shadow bg-[#e6d6ca]',
+                              myRsvp?.status === status
+                                ? 'shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1]'
+                                : 'shadow-[2px_2px_5px_#ccb5a5,-2px_-2px_5px_#f7ebe1]'
+                            )}
+                            style={{ color: myRsvp?.status === status ? RSVP_HEX[status] : '#a08a77' }}
+                          >
+                            {status === 'attending' && <Check className="h-3.5 w-3.5" />}
+                            {status === 'maybe' && <Minus className="h-3.5 w-3.5" />}
+                            {status === 'declined' && <XIcon className="h-3.5 w-3.5" />}
+                          </button>
+                        ))}
                       </div>
+                      {othersRsvp.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          {othersRsvp.map(a => (
+                            <span key={a.id} className="inline-flex items-center gap-1" title={`${a.profiles?.full_name ?? 'Partner'}: ${a.status}`}>
+                              <span className={cn('w-6 h-6 rounded-full bg-[#e6d6ca] flex items-center justify-center text-[9.5px] font-black text-[#c1673f]', RAISED_SM)}>
+                                {initials(a.profiles?.full_name)}
+                              </span>
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: RSVP_HEX[a.status] }} />
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -373,7 +386,7 @@ export default function CalendarPage() {
           <div className={cn(MODAL_PANEL, 'max-w-md')}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-black text-[#4b3a2f]">{editing ? 'Edit Event' : 'New Event'}</h2>
-              <button onClick={() => setShowModal(false)} className={ICON_BTN}><X className="h-4 w-4" /></button>
+              <button onClick={() => setShowModal(false)} className="w-9 h-9 rounded-xl bg-[#e6d6ca] text-[#8a7462] flex items-center justify-center shadow-[4px_4px_9px_#ccb5a5,-4px_-4px_9px_#f7ebe1]"><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
               <div>
