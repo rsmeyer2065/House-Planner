@@ -8,7 +8,7 @@ import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight, MapPin, Clock, Chec
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
-  RAISED_SM, CARD_LG, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, SUBTITLE,
+  RAISED_SM, CARD_LG, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, SUBTITLE, ICON_BTN,
   MODAL_OVERLAY, MODAL_PANEL,
 } from '@/lib/neu'
 
@@ -386,7 +386,7 @@ export default function CalendarPage() {
           <div className={cn(MODAL_PANEL, 'max-w-md')}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-black text-[#4b3a2f]">{editing ? 'Edit Event' : 'New Event'}</h2>
-              <button onClick={() => setShowModal(false)} className="w-9 h-9 rounded-xl bg-[#e6d6ca] text-[#8a7462] flex items-center justify-center shadow-[4px_4px_9px_#ccb5a5,-4px_-4px_9px_#f7ebe1]"><X className="h-4 w-4" /></button>
+              <button onClick={() => setShowModal(false)} className={ICON_BTN}><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
               <div>

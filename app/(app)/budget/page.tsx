@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, ICON_BTN, ICON_BTN_DANGER,
-  pillClass, MODAL_OVERLAY, MODAL_PANEL, hexFor,
+  CHIP_GROUP, chipClass, MODAL_OVERLAY, MODAL_PANEL, hexFor,
 } from '@/lib/neu'
 
 type FormData = {
@@ -281,9 +281,9 @@ export default function BudgetPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className={CHIP_GROUP}>
         {(['overview', 'categories'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={pillClass(tab === t)}>
+          <button key={t} onClick={() => setTab(t)} className={chipClass(tab === t)}>
             {t}
           </button>
         ))}

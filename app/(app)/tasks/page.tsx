@@ -9,14 +9,9 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL,
-  ICON_BTN, ICON_BTN_DANGER, pillClass, BADGE, MODAL_OVERLAY, MODAL_PANEL,
+  ICON_BTN, ICON_BTN_DANGER, CHIP_GROUP, chipClass, SOLID_CHIP, PRIORITY_META, SEVERITY_META,
+  MODAL_OVERLAY, MODAL_PANEL,
 } from '@/lib/neu'
-
-const PRIORITY_HEX: Record<Priority, string> = {
-  low: '#7c9a6e',
-  medium: '#c47a3d',
-  high: '#c1673f',
-}
 
 type AssignFilter = 'all' | 'mine' | 'partners' | 'unassigned'
 
@@ -174,23 +169,23 @@ export default function TasksPage() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <div className="flex gap-1.5">
+      <div className="flex flex-wrap gap-3">
+        <div className={CHIP_GROUP}>
           {(['all', 'pending', 'completed'] as const).map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)} className={pillClass(statusFilter === s)}>
+            <button key={s} onClick={() => setStatusFilter(s)} className={chipClass(statusFilter === s)}>
               {s}
             </button>
           ))}
         </div>
 
         {(currentUserId || hasPartner) && (
-          <div className="flex gap-1.5 border-l border-[rgba(150,120,95,0.25)] pl-2.5">
+          <div className={CHIP_GROUP}>
             {([
               ['all', 'Everyone'],
               ['mine', 'Mine'],
               ...(hasPartner ? [['partners', "Partner's"], ['unassigned', 'Unassigned']] : []),
             ] as [AssignFilter, string][]).map(([val, label]) => (
-              <button key={val} onClick={() => setAssignFilter(val)} className={pillClass(assignFilter === val)}>
+              <button key={val} onClick={() => setAssignFilter(val)} className={chipClass(assignFilter === val)}>
                 {label}
               </button>
             ))}
@@ -221,9 +216,9 @@ export default function TasksPage() {
                     <span className={cn('text-sm font-bold text-[#4b3a2f]', t.status === 'completed' && 'line-through text-[#a58b78]')}>
                       {t.title}
                     </span>
-                    <span className={BADGE} style={{ color: PRIORITY_HEX[t.priority] }}>{t.priority}</span>
+                    <span className={SOLID_CHIP} style={{ backgroundColor: PRIORITY_META[t.priority].bg, color: PRIORITY_META[t.priority].tx }}>{t.priority}</span>
                     {t.recurrence !== 'none' && (
-                      <span className={BADGE} style={{ color: '#7d93a0' }}>{t.recurrence}</span>
+                      <span className={SOLID_CHIP} style={{ backgroundColor: SEVERITY_META.info.bg, color: SEVERITY_META.info.tx }}>{t.recurrence}</span>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-x-3 mt-1 text-xs font-bold text-[#a58b78]">

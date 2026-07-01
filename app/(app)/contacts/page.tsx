@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, ICON_BTN, ICON_BTN_DANGER,
-  pillClass, BADGE, MODAL_OVERLAY, MODAL_PANEL,
+  CHIP_GROUP, chipClass, SOLID_CHIP, qualitativeChip, MODAL_OVERLAY, MODAL_PANEL,
 } from '@/lib/neu'
 
 const CATEGORIES = ['plumber', 'electrician', 'contractor', 'cleaner', 'landscaper', 'hvac', 'doctor', 'dentist', 'vet', 'neighbor', 'family', 'friend', 'other']
@@ -28,22 +28,6 @@ type FormData = {
 const EMPTY_FORM: FormData = {
   name: '', category: 'other', phone: '', email: '',
   website: '', address: '', notes: '', last_service_date: '',
-}
-
-const CATEGORY_HEX: Record<string, string> = {
-  plumber: '#7d93a0',
-  electrician: '#bd9038',
-  contractor: '#c47a3d',
-  cleaner: '#7c9a6e',
-  landscaper: '#7c9a6e',
-  hvac: '#6e9a92',
-  doctor: '#b5574a',
-  dentist: '#bd6b6f',
-  vet: '#957a9e',
-  neighbor: '#a07a52',
-  family: '#bf6a48',
-  friend: '#6e9a92',
-  other: '#a58b78',
 }
 
 export default function ContactsPage() {
@@ -145,9 +129,9 @@ export default function ContactsPage() {
             placeholder="Search contacts..."
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className={CHIP_GROUP}>
           {usedCategories.map(c => (
-            <button key={c} onClick={() => setCatFilter(c)} className={pillClass(catFilter === c)}>
+            <button key={c} onClick={() => setCatFilter(c)} className={chipClass(catFilter === c)}>
               {c}
             </button>
           ))}
@@ -167,7 +151,7 @@ export default function ContactsPage() {
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
                   <h3 className="font-extrabold text-[#4b3a2f]">{c.name}</h3>
-                  <span className={cn(BADGE, 'mt-1')} style={{ color: CATEGORY_HEX[c.category] ?? CATEGORY_HEX.other }}>
+                  <span className={cn(SOLID_CHIP, 'mt-1')} style={{ backgroundColor: qualitativeChip(c.category).bg, color: qualitativeChip(c.category).tx }}>
                     {c.category}
                   </span>
                 </div>

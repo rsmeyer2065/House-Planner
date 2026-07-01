@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, SUBTITLE,
-  ICON_BTN, MODAL_OVERLAY, MODAL_PANEL,
+  ICON_BTN, ICON_BTN_DANGER, CHIP_GROUP, chipClass, SOLID_CHIP, PRIORITY_META, MODAL_OVERLAY, MODAL_PANEL,
 } from '@/lib/neu'
 
 const STATUS_META: Record<ProjectStatus, { label: string; bar: string; chipBg: string; chipTx: string }> = {
@@ -17,12 +17,6 @@ const STATUS_META: Record<ProjectStatus, { label: string; bar: string; chipBg: s
   in_progress: { label: 'In progress', bar: '#c1673f', chipBg: '#efd9cf', chipTx: '#a24e30' },
   completed: { label: 'Completed', bar: '#6d8a52', chipBg: '#e2e5cf', chipTx: '#556f38' },
   on_hold: { label: 'On hold', bar: '#b5843a', chipBg: '#eee0c7', chipTx: '#8f6a1f' },
-}
-
-const PRIORITY_META: Record<Priority, { bg: string; tx: string }> = {
-  high: { bg: '#efd9cf', tx: '#bb5a48' },
-  medium: { bg: '#eee0c7', tx: '#a37a2f' },
-  low: { bg: '#e2e5cf', tx: '#6d8a52' },
 }
 
 function pctFor(p: Project): number {
@@ -140,18 +134,9 @@ export default function ProjectsPage() {
         </button>
       </div>
 
-      <div className="flex gap-2 p-1.5 rounded-2xl bg-[#e6d6ca] shadow-[inset_3px_3px_7px_#ccb5a5,inset_-3px_-3px_7px_#f7ebe1] self-start flex-wrap">
+      <div className={CHIP_GROUP}>
         {(['all', 'planned', 'in_progress', 'completed', 'on_hold'] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={cn(
-              'border-0 cursor-pointer font-extrabold text-[13.5px] px-4 py-2 rounded-xl transition-shadow capitalize whitespace-nowrap',
-              filter === s
-                ? 'text-[#c1673f] bg-[#e6d6ca] shadow-[4px_4px_9px_#ccb5a5,-4px_-4px_9px_#f7ebe1]'
-                : 'text-[#9a8571] bg-transparent font-bold'
-            )}
-          >
+          <button key={s} onClick={() => setFilter(s)} className={chipClass(filter === s)}>
             {s === 'all' ? 'All' : STATUS_META[s].label}
           </button>
         ))}
@@ -179,10 +164,10 @@ export default function ProjectsPage() {
                 <div className="flex-1 min-w-0 flex flex-col gap-2.5">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <h3 className="text-[16.5px] font-black text-[#4b3a2f]">{p.title}</h3>
-                    <span className="text-[11.5px] font-extrabold px-2.5 py-1 rounded-full" style={{ backgroundColor: meta.chipBg, color: meta.chipTx }}>
+                    <span className={SOLID_CHIP} style={{ backgroundColor: meta.chipBg, color: meta.chipTx }}>
                       {meta.label}
                     </span>
-                    <span className="text-[11.5px] font-extrabold px-2.5 py-1 rounded-full capitalize" style={{ backgroundColor: prio.bg, color: prio.tx }}>
+                    <span className={SOLID_CHIP} style={{ backgroundColor: prio.bg, color: prio.tx }}>
                       {p.priority}
                     </span>
                   </div>
@@ -211,10 +196,10 @@ export default function ProjectsPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 flex-none">
-                  <button onClick={() => openEdit(p)} className="w-[38px] h-[38px] rounded-xl bg-[#e6d6ca] text-[#8a7462] flex items-center justify-center shadow-[4px_4px_8px_#ccb5a5,-4px_-4px_8px_#f7ebe1] active:shadow-[inset_3px_3px_6px_#ccb5a5,inset_-3px_-3px_6px_#f7ebe1]">
+                  <button onClick={() => openEdit(p)} className={ICON_BTN}>
                     <Pencil className="h-4 w-4" />
                   </button>
-                  <button onClick={() => remove(p.id)} className="w-[38px] h-[38px] rounded-xl bg-[#e6d6ca] text-[#bb5a48] flex items-center justify-center shadow-[4px_4px_8px_#ccb5a5,-4px_-4px_8px_#f7ebe1] active:shadow-[inset_3px_3px_6px_#ccb5a5,inset_-3px_-3px_6px_#f7ebe1]">
+                  <button onClick={() => remove(p.id)} className={ICON_BTN_DANGER}>
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

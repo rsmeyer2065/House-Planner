@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, ICON_BTN, ICON_BTN_DANGER,
-  pillClass, BADGE, MODAL_OVERLAY, MODAL_PANEL,
+  CHIP_GROUP, chipClass, SOLID_CHIP, SEVERITY_META, qualitativeChip, MODAL_OVERLAY, MODAL_PANEL,
 } from '@/lib/neu'
 
 type FormData = {
@@ -149,9 +149,9 @@ export default function InventoryPage() {
             placeholder="Search items..."
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className={CHIP_GROUP}>
           {usedCats.map(c => (
-            <button key={c} onClick={() => setCatFilter(c)} className={pillClass(catFilter === c)}>
+            <button key={c} onClick={() => setCatFilter(c)} className={chipClass(catFilter === c)}>
               {c}
             </button>
           ))}
@@ -174,14 +174,14 @@ export default function InventoryPage() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-extrabold text-[#4b3a2f] truncate">{item.name}</h3>
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      <span className={BADGE} style={{ color: '#a58b78' }}>{item.category}</span>
+                      <span className={SOLID_CHIP} style={{ backgroundColor: qualitativeChip(item.category).bg, color: qualitativeChip(item.category).tx }}>{item.category}</span>
                       {ws === 'expired' && (
-                        <span className={BADGE} style={{ color: '#b5574a' }}>
+                        <span className={SOLID_CHIP} style={{ backgroundColor: SEVERITY_META.danger.bg, color: SEVERITY_META.danger.tx }}>
                           <AlertTriangle className="h-3 w-3" /> Warranty expired
                         </span>
                       )}
                       {ws === 'expiring' && (
-                        <span className={BADGE} style={{ color: '#bd9038' }}>
+                        <span className={SOLID_CHIP} style={{ backgroundColor: SEVERITY_META.warning.bg, color: SEVERITY_META.warning.tx }}>
                           <AlertTriangle className="h-3 w-3" /> Expiring soon
                         </span>
                       )}
