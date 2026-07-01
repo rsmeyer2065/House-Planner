@@ -7,6 +7,9 @@ import type { ShoppingList, ShoppingItem } from '@/lib/types'
 import { Plus, X, Trash2, CheckSquare2, Square, ShoppingCart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import {
+  RAISED_SM, CARD, BTN_PRIMARY, BTN_GHOST, BTN_DANGER_GHOST, INPUT, ICON_BTN, MODAL_OVERLAY, MODAL_PANEL,
+} from '@/lib/neu'
 
 export default function ShoppingPage() {
   const [lists, setLists] = useState<ShoppingList[]>([])
@@ -168,57 +171,54 @@ export default function ShoppingPage() {
   const checkedCount = currentItems.filter(i => i.checked).length
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-foreground">Shopping</h1>
+          <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Shopping</h1>
           {isLive && (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#7c9a6e] bg-[#e6d6ca] shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1] px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#7c9a6e] animate-pulse" />
               Live
             </span>
           )}
         </div>
-        <button
-          onClick={() => setShowListModal(true)}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> New List
+        <button onClick={() => setShowListModal(true)} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> New List
         </button>
       </div>
 
       {loading ? (
-        <div className="h-48 rounded-xl bg-muted animate-pulse" />
+        <div className="h-48 rounded-[22px] bg-[#dcc8ba] animate-pulse" />
       ) : lists.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <ShoppingCart className="h-10 w-10 mx-auto mb-3 opacity-30" />
+        <div className="text-center py-16 text-[#a58b78] font-semibold">
+          <ShoppingCart className="h-10 w-10 mx-auto mb-3 opacity-40" />
           <p>No shopping lists yet. Create one to get started!</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-[220px_1fr] gap-6">
+        <div className="grid md:grid-cols-[220px_1fr] gap-5">
           {/* List sidebar */}
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             {lists.map(list => (
               <div key={list.id} className="flex items-center gap-2 group">
                 <button
                   onClick={() => setSelectedList(list.id)}
                   className={cn(
-                    'flex-1 text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors truncate',
+                    'flex-1 text-left px-3.5 py-2.5 rounded-2xl text-sm font-bold transition-shadow truncate',
                     selectedList === list.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted text-foreground'
+                      ? 'bg-[#c1673f] text-[#faf1e9] shadow-[3px_3px_8px_#ccb5a5,-2px_-2px_6px_#f7ebe1]'
+                      : 'text-[#6a5647] hover:shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1]'
                   )}
                 >
                   {list.name}
-                  <span className={cn('ml-2 text-xs', selectedList === list.id ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                  <span className={cn('ml-2 text-xs', selectedList === list.id ? 'text-[#faf1e9]/70' : 'text-[#a58b78]')}>
                     {(items[list.id] ?? []).length}
                   </span>
                 </button>
                 <button
                   onClick={() => deleteList(list.id)}
-                  className="p-1.5 rounded-lg hover:bg-muted opacity-0 group-hover:opacity-100 transition-all"
+                  className="p-1.5 rounded-xl text-[#b5574a] opacity-0 group-hover:opacity-100 transition-all"
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}
@@ -226,33 +226,27 @@ export default function ShoppingPage() {
 
           {/* Items panel */}
           {selectedList && (
-            <div className="rounded-xl border bg-card p-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-muted-foreground">
+            <div className={cn('p-5', CARD)}>
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <p className="text-sm font-bold text-[#a58b78]">
                   {checkedCount} of {currentItems.length} items checked
                 </p>
                 <div className="flex gap-2">
                   {checkedCount > 0 && (
-                    <button
-                      onClick={clearChecked}
-                      className="text-xs text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 transition-colors"
-                    >
+                    <button onClick={clearChecked} className={cn(BTN_DANGER_GHOST, 'px-3.5 py-2 text-xs')}>
                       Clear checked
                     </button>
                   )}
-                  <button
-                    onClick={() => setShowItemForm(v => !v)}
-                    className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity"
-                  >
+                  <button onClick={() => setShowItemForm(v => !v)} className={cn(BTN_PRIMARY, 'px-3.5 py-2 text-xs')}>
                     <Plus className="h-3.5 w-3.5" /> Add item
                   </button>
                 </div>
               </div>
 
               {showItemForm && (
-                <div className="flex flex-col sm:flex-row gap-2 mb-4 p-3 rounded-lg bg-muted/50 border">
+                <div className={cn('flex flex-col sm:flex-row gap-2 mb-4 p-3.5 rounded-2xl', RAISED_SM)}>
                   <input
-                    className="flex-1 border rounded-lg px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={cn(INPUT, 'flex-1')}
                     value={newItem.name}
                     onChange={e => setNewItem(n => ({ ...n, name: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && addItem()}
@@ -260,28 +254,25 @@ export default function ShoppingPage() {
                     autoFocus
                   />
                   <input
-                    className="w-24 border rounded-lg px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={cn(INPUT, 'sm:w-24')}
                     value={newItem.quantity}
                     onChange={e => setNewItem(n => ({ ...n, quantity: e.target.value }))}
                     placeholder="Qty"
                   />
                   <input
-                    className="w-28 border rounded-lg px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={cn(INPUT, 'sm:w-28')}
                     value={newItem.category}
                     onChange={e => setNewItem(n => ({ ...n, category: e.target.value }))}
                     placeholder="Category"
                   />
-                  <button
-                    onClick={addItem}
-                    className="bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-                  >
+                  <button onClick={addItem} className={BTN_PRIMARY}>
                     Add
                   </button>
                 </div>
               )}
 
               {currentItems.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8 text-sm">No items yet. Add one above!</p>
+                <p className="text-center text-[#a58b78] font-semibold py-8 text-sm">No items yet. Add one above!</p>
               ) : (
                 <div className="space-y-1">
                   {Object.entries(
@@ -293,24 +284,24 @@ export default function ShoppingPage() {
                     }, {})
                   ).map(([cat, catItems]) => (
                     <div key={cat}>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-3 mb-1 px-1">{cat}</p>
+                      <p className="text-xs font-extrabold text-[#a58b78] uppercase tracking-wide mt-3 mb-1 px-1">{cat}</p>
                       {catItems.map(item => (
-                        <div key={item.id} className="flex items-center gap-3 py-2 px-1 rounded-lg hover:bg-muted/50 group/item">
-                          <button onClick={() => toggleItem(item)} className="shrink-0 text-muted-foreground hover:text-primary transition-colors">
+                        <div key={item.id} className="flex items-center gap-3 py-2.5 px-1.5 rounded-xl hover:shadow-[inset_2px_2px_5px_#ccb5a5,inset_-2px_-2px_5px_#f7ebe1] group/item transition-shadow">
+                          <button onClick={() => toggleItem(item)} className="shrink-0 text-[#b09a86] hover:text-[#c1673f] transition-colors">
                             {item.checked
-                              ? <CheckSquare2 className="h-5 w-5 text-primary" />
-                              : <Square className="h-5 w-5" />
+                              ? <CheckSquare2 className="h-5 w-5 text-[#c1673f]" strokeWidth={2.25} />
+                              : <Square className="h-5 w-5" strokeWidth={2.25} />
                             }
                           </button>
-                          <span className={cn('flex-1 text-sm', item.checked && 'line-through text-muted-foreground')}>
+                          <span className={cn('flex-1 text-sm font-bold text-[#4b3a2f]', item.checked && 'line-through text-[#a58b78]')}>
                             {item.name}
-                            {item.quantity && <span className="text-muted-foreground ml-1">× {item.quantity}</span>}
+                            {item.quantity && <span className="text-[#a58b78] ml-1 font-semibold">× {item.quantity}</span>}
                           </span>
                           <button
                             onClick={() => deleteItem(item.id)}
-                            className="p-1 rounded hover:bg-muted opacity-0 group-hover/item:opacity-100 transition-all"
+                            className="p-1 rounded text-[#b5574a] opacity-0 group-hover/item:opacity-100 transition-all"
                           >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       ))}
@@ -324,14 +315,14 @@ export default function ShoppingPage() {
       )}
 
       {showListModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl w-full max-w-sm p-6 shadow-xl">
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-sm')}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">New Shopping List</h2>
-              <button onClick={() => setShowListModal(false)}><X className="h-5 w-5 text-muted-foreground" /></button>
+              <h2 className="text-lg font-black text-[#4b3a2f]">New Shopping List</h2>
+              <button onClick={() => setShowListModal(false)} className={ICON_BTN}><X className="h-4 w-4" /></button>
             </div>
             <input
-              className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary mb-4"
+              className={cn(INPUT, 'mb-4')}
               value={listName}
               onChange={e => setListName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && createList()}
@@ -339,8 +330,8 @@ export default function ShoppingPage() {
               autoFocus
             />
             <div className="flex gap-2">
-              <button onClick={() => setShowListModal(false)} className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">Cancel</button>
-              <button onClick={createList} className="flex-1 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">Create</button>
+              <button onClick={() => setShowListModal(false)} className={cn(BTN_GHOST, 'flex-1')}>Cancel</button>
+              <button onClick={createList} className={cn(BTN_PRIMARY, 'flex-1')}>Create</button>
             </div>
           </div>
         </div>

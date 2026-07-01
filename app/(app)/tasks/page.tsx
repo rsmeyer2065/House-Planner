@@ -7,12 +7,11 @@ import type { Task, Priority, RecurrenceType, Profile } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, CheckSquare2, Square, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-
-const PRIORITY_COLORS: Record<Priority, string> = {
-  low: 'bg-green-100 text-green-700',
-  medium: 'bg-yellow-100 text-yellow-700',
-  high: 'bg-red-100 text-red-700',
-}
+import {
+  CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL,
+  ICON_BTN, ICON_BTN_DANGER, CHIP_GROUP, chipClass, SOLID_CHIP, PRIORITY_META, SEVERITY_META,
+  MODAL_OVERLAY, MODAL_PANEL,
+} from '@/lib/neu'
 
 type AssignFilter = 'all' | 'mine' | 'partners' | 'unassigned'
 
@@ -162,52 +161,31 @@ export default function TasksPage() {
   const hasPartner = members.some(m => m.id !== currentUserId)
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Tasks</h1>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> Add Task
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Tasks</h1>
+        <button onClick={openAdd} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> Add Task
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-5">
-        <div className="flex gap-1.5">
+      <div className="flex flex-wrap gap-3">
+        <div className={CHIP_GROUP}>
           {(['all', 'pending', 'completed'] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                'px-3 py-1 rounded-full text-sm font-medium border transition-colors capitalize',
-                statusFilter === s
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-border text-muted-foreground hover:border-foreground'
-              )}
-            >
+            <button key={s} onClick={() => setStatusFilter(s)} className={chipClass(statusFilter === s)}>
               {s}
             </button>
           ))}
         </div>
 
         {(currentUserId || hasPartner) && (
-          <div className="flex gap-1.5 border-l pl-2">
+          <div className={CHIP_GROUP}>
             {([
               ['all', 'Everyone'],
               ['mine', 'Mine'],
               ...(hasPartner ? [['partners', "Partner's"], ['unassigned', 'Unassigned']] : []),
             ] as [AssignFilter, string][]).map(([val, label]) => (
-              <button
-                key={val}
-                onClick={() => setAssignFilter(val)}
-                className={cn(
-                  'px-3 py-1 rounded-full text-sm font-medium border transition-colors',
-                  assignFilter === val
-                    ? 'bg-orange-500 text-white border-orange-500'
-                    : 'bg-background border-border text-muted-foreground hover:border-foreground'
-                )}
-              >
+              <button key={val} onClick={() => setAssignFilter(val)} className={chipClass(assignFilter === val)}>
                 {label}
               </button>
             ))}
@@ -217,40 +195,36 @@ export default function TasksPage() {
 
       {loading ? (
         <div className="grid gap-2">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-16 rounded-[22px] bg-[#dcc8ba] animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">No tasks here. Add one to get started!</div>
+        <div className="text-center py-16 text-[#a58b78] font-semibold">No tasks here. Add one to get started!</div>
       ) : (
         <div className="grid gap-2">
           {filtered.map(t => {
             const assignee = t.assigned_to ? profileMap[t.assigned_to] : null
             return (
-              <div key={t.id} className={cn('flex items-center gap-3 p-4 rounded-xl border bg-card', t.status === 'completed' && 'opacity-60')}>
-                <button onClick={() => toggleComplete(t)} className="shrink-0 text-muted-foreground hover:text-primary transition-colors">
+              <div key={t.id} className={cn('flex items-center gap-3 p-4', CARD, t.status === 'completed' && 'opacity-60')}>
+                <button onClick={() => toggleComplete(t)} className="shrink-0 text-[#b09a86] hover:text-[#c1673f] transition-colors">
                   {t.status === 'completed'
-                    ? <CheckSquare2 className="h-5 w-5 text-primary" />
-                    : <Square className="h-5 w-5" />
+                    ? <CheckSquare2 className="h-5 w-5 text-[#c1673f]" strokeWidth={2.25} />
+                    : <Square className="h-5 w-5" strokeWidth={2.25} />
                   }
                 </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={cn('text-sm font-medium', t.status === 'completed' && 'line-through text-muted-foreground')}>
+                    <span className={cn('text-sm font-bold text-[#4b3a2f]', t.status === 'completed' && 'line-through text-[#a58b78]')}>
                       {t.title}
                     </span>
-                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', PRIORITY_COLORS[t.priority])}>
-                      {t.priority}
-                    </span>
+                    <span className={SOLID_CHIP} style={{ backgroundColor: PRIORITY_META[t.priority].bg, color: PRIORITY_META[t.priority].tx }}>{t.priority}</span>
                     {t.recurrence !== 'none' && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
-                        {t.recurrence}
-                      </span>
+                      <span className={SOLID_CHIP} style={{ backgroundColor: SEVERITY_META.info.bg, color: SEVERITY_META.info.tx }}>{t.recurrence}</span>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-x-3 mt-0.5 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-x-3 mt-1 text-xs font-bold text-[#a58b78]">
                     {t.category !== 'general' && <span>{t.category}</span>}
                     {t.due_date && (
-                      <span className={cn(isOverdue(t) && 'text-destructive font-medium')}>
+                      <span className={cn(isOverdue(t) && 'text-[#c1673f]')}>
                         Due: {t.due_date}
                       </span>
                     )}
@@ -263,12 +237,12 @@ export default function TasksPage() {
                     {t.description && <span className="truncate max-w-xs">{t.description}</span>}
                   </div>
                 </div>
-                <div className="flex gap-1 shrink-0">
-                  <button onClick={() => openEdit(t)} className="p-2 rounded-lg hover:bg-muted transition-colors">
-                    <Pencil className="h-4 w-4 text-muted-foreground" />
+                <div className="flex gap-1.5 shrink-0">
+                  <button onClick={() => openEdit(t)} className={ICON_BTN}>
+                    <Pencil className="h-4 w-4" />
                   </button>
-                  <button onClick={() => remove(t.id)} className="p-2 rounded-lg hover:bg-muted transition-colors">
-                    <Trash2 className="h-4 w-4 text-destructive" />
+                  <button onClick={() => remove(t.id)} className={ICON_BTN_DANGER}>
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -278,37 +252,37 @@ export default function TasksPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-md')}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editing ? 'Edit Task' : 'New Task'}</h2>
-              <button onClick={() => setShowModal(false)}>
-                <X className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-black text-[#4b3a2f]">{editing ? 'Edit Task' : 'New Task'}</h2>
+              <button onClick={() => setShowModal(false)} className={ICON_BTN}>
+                <X className="h-4 w-4" />
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium mb-1 block">Title *</label>
+                <label className={LABEL}>Title *</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   placeholder="Task title"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Description</label>
+                <label className={LABEL}>Description</label>
                 <textarea
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none h-16 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={cn(INPUT, 'resize-none h-16')}
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Priority</label>
+                  <label className={LABEL}>Priority</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.priority}
                     onChange={e => setForm(f => ({ ...f, priority: e.target.value as Priority }))}
                   >
@@ -318,9 +292,9 @@ export default function TasksPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Assign To</label>
+                  <label className={LABEL}>Assign To</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.assigned_to}
                     onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
                   >
@@ -335,9 +309,9 @@ export default function TasksPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Recurrence</label>
+                  <label className={LABEL}>Recurrence</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.recurrence}
                     onChange={e => setForm(f => ({ ...f, recurrence: e.target.value as RecurrenceType }))}
                   >
@@ -349,9 +323,9 @@ export default function TasksPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Category</label>
+                  <label className={LABEL}>Category</label>
                   <input
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.category}
                     onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                     placeholder="e.g. Cleaning, Garden"
@@ -359,26 +333,20 @@ export default function TasksPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Due Date</label>
+                <label className={LABEL}>Due Date</label>
                 <input
                   type="date"
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.due_date}
                   onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
-              >
+              <button onClick={() => setShowModal(false)} className={cn(BTN_GHOST, 'flex-1')}>
                 Cancel
               </button>
-              <button
-                onClick={save}
-                className="flex-1 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
-              >
+              <button onClick={save} className={cn(BTN_PRIMARY, 'flex-1')}>
                 {editing ? 'Save Changes' : 'Create Task'}
               </button>
             </div>

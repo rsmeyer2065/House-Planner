@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import type { Profile, Household } from '@/lib/types'
 import { Copy, Check, LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
+import { CARD, INPUT, LABEL, BTN_PRIMARY, BTN_GHOST, BTN_DANGER_GHOST, RAISED_SM } from '@/lib/neu'
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -103,71 +105,60 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="max-w-lg space-y-4">
-        <div className="h-8 w-32 bg-muted rounded animate-pulse mb-6" />
-        {[1, 2].map(i => <div key={i} className="h-36 rounded-xl bg-muted animate-pulse" />)}
+        <div className="h-8 w-32 bg-[#dcc8ba] rounded animate-pulse mb-6" />
+        {[1, 2].map(i => <div key={i} className="h-36 rounded-[22px] bg-[#dcc8ba] animate-pulse" />)}
       </div>
     )
   }
 
   return (
-    <div className="max-w-lg">
-      <h1 className="text-2xl font-bold text-foreground mb-6">Settings</h1>
+    <div className="max-w-lg flex flex-col gap-5">
+      <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Settings</h1>
 
       {/* Profile */}
-      <div className="rounded-xl border bg-card p-5 mb-4">
-        <h2 className="font-semibold mb-4">Profile</h2>
+      <div className={cn('p-5', CARD)}>
+        <h2 className="font-extrabold text-[#4b3a2f] mb-4">Profile</h2>
         <div className="space-y-3">
           <div>
-            <label className="text-sm font-medium mb-1 block">Display Name</label>
+            <label className={LABEL}>Display Name</label>
             <input
-              className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              className={INPUT}
               value={fullName}
               onChange={e => setFullName(e.target.value)}
               placeholder="Your name"
             />
           </div>
-          <button
-            onClick={saveProfile}
-            disabled={saving}
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
+          <button onClick={saveProfile} disabled={saving} className={BTN_PRIMARY}>
             Save Profile
           </button>
         </div>
       </div>
 
       {/* Household */}
-      <div className="rounded-xl border bg-card p-5 mb-4">
-        <h2 className="font-semibold mb-4">Household</h2>
+      <div className={cn('p-5', CARD)}>
+        <h2 className="font-extrabold text-[#4b3a2f] mb-4">Household</h2>
         {household ? (
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium mb-1 block">Household Name</label>
+              <label className={LABEL}>Household Name</label>
               <input
-                className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                className={INPUT}
                 value={householdName}
                 onChange={e => setHouseholdName(e.target.value)}
               />
             </div>
-            <button
-              onClick={saveHousehold}
-              disabled={saving}
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
+            <button onClick={saveHousehold} disabled={saving} className={BTN_PRIMARY}>
               Save
             </button>
-            <div className="border-t pt-3">
-              <label className="text-sm font-medium mb-2 block">Invite Code</label>
-              <p className="text-xs text-muted-foreground mb-2">Share this code to let others join your household.</p>
+            <div className="border-t border-[rgba(150,120,95,0.18)] pt-3.5">
+              <label className={LABEL}>Invite Code</label>
+              <p className="text-xs font-semibold text-[#a58b78] mb-2">Share this code to let others join your household.</p>
               <div className="flex gap-2">
-                <div className="flex-1 border rounded-lg px-3 py-2 text-sm bg-muted font-mono font-bold tracking-widest">
+                <div className={cn('flex-1 rounded-2xl px-4 py-2.5 text-sm font-mono font-black tracking-widest text-[#4b3a2f] bg-[#e6d6ca]', RAISED_SM)}>
                   {inviteCode}
                 </div>
-                <button
-                  onClick={copyInviteCode}
-                  className="flex items-center gap-1.5 border rounded-lg px-3 py-2 text-sm hover:bg-muted transition-colors"
-                >
-                  {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                <button onClick={copyInviteCode} className={BTN_GHOST}>
+                  {copied ? <Check className="h-4 w-4 text-[#7c9a6e]" /> : <Copy className="h-4 w-4" />}
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
@@ -176,57 +167,47 @@ export default function SettingsPage() {
         ) : (
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium mb-2">Create a New Household</h3>
+              <h3 className="text-sm font-extrabold text-[#4b3a2f] mb-2">Create a New Household</h3>
               <div className="flex gap-2">
                 <input
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={cn(INPUT, 'flex-1')}
                   value={householdName}
                   onChange={e => setHouseholdName(e.target.value)}
                   placeholder="Our Home"
                 />
-                <button
-                  onClick={createHousehold}
-                  disabled={saving}
-                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
-                >
+                <button onClick={createHousehold} disabled={saving} className={BTN_PRIMARY}>
                   Create
                 </button>
               </div>
             </div>
             <div className="relative">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t" /></div>
-              <div className="relative flex justify-center"><span className="px-2 bg-card text-xs text-muted-foreground">or</span></div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[rgba(150,120,95,0.18)]" /></div>
+              <div className="relative flex justify-center"><span className="px-2 bg-[#e6d6ca] text-xs font-bold text-[#a58b78]">or</span></div>
             </div>
             <div>
-              <h3 className="text-sm font-medium mb-2">Join an Existing Household</h3>
+              <h3 className="text-sm font-extrabold text-[#4b3a2f] mb-2">Join an Existing Household</h3>
               <div className="flex gap-2">
                 <input
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary uppercase tracking-widest"
+                  className={cn(INPUT, 'flex-1 uppercase tracking-widest')}
                   value={joinCode}
                   onChange={e => setJoinCode(e.target.value)}
                   placeholder="INVITE CODE"
                   maxLength={8}
                 />
-                <button
-                  onClick={joinHousehold}
-                  className="border px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors whitespace-nowrap"
-                >
+                <button onClick={joinHousehold} className={BTN_GHOST}>
                   Join
                 </button>
               </div>
-              {joinError && <p className="text-sm text-destructive mt-1">{joinError}</p>}
+              {joinError && <p className="text-sm font-semibold text-[#b5574a] mt-1">{joinError}</p>}
             </div>
           </div>
         )}
       </div>
 
       {/* Sign out */}
-      <div className="rounded-xl border bg-card p-5">
-        <h2 className="font-semibold mb-3">Account</h2>
-        <button
-          onClick={signOut}
-          className="flex items-center gap-2 text-destructive border border-destructive/30 rounded-lg px-4 py-2 text-sm font-medium hover:bg-destructive/10 transition-colors"
-        >
+      <div className={cn('p-5', CARD)}>
+        <h2 className="font-extrabold text-[#4b3a2f] mb-3">Account</h2>
+        <button onClick={signOut} className={BTN_DANGER_GHOST}>
           <LogOut className="h-4 w-4" />
           Sign Out
         </button>

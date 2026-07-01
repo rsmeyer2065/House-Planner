@@ -7,6 +7,10 @@ import type { Transaction, BudgetCategory, Profile } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import {
+  CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, ICON_BTN, ICON_BTN_DANGER,
+  CHIP_GROUP, chipClass, MODAL_OVERLAY, MODAL_PANEL, hexFor,
+} from '@/lib/neu'
 
 type FormData = {
   title: string
@@ -268,28 +272,18 @@ export default function BudgetPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Budget</h1>
-        <button
-          onClick={tab === 'overview' ? openAddTxn : openAddCat}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> {tab === 'overview' ? 'Add Expense' : 'Add Category'}
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Budget</h1>
+        <button onClick={tab === 'overview' ? openAddTxn : openAddCat} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> {tab === 'overview' ? 'Add Expense' : 'Add Category'}
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-4 border-b">
+      <div className={CHIP_GROUP}>
         {(['overview', 'categories'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px capitalize',
-              tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
+          <button key={t} onClick={() => setTab(t)} className={chipClass(tab === t)}>
             {t}
           </button>
         ))}
@@ -298,116 +292,108 @@ export default function BudgetPage() {
       {tab === 'overview' && (
         <>
           {/* Month selector */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => shiftMonth(-1)}
-                className="p-1.5 rounded-lg border hover:bg-muted transition-colors"
-                aria-label="Previous month"
-              >
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <button onClick={() => shiftMonth(-1)} className={ICON_BTN} aria-label="Previous month">
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <input
                 type="month"
                 value={selectedMonth}
                 onChange={e => setSelectedMonth(e.target.value)}
-                className="border rounded-lg px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                className={cn(INPUT, 'w-auto')}
               />
-              <button
-                onClick={() => shiftMonth(1)}
-                className="p-1.5 rounded-lg border hover:bg-muted transition-colors"
-                aria-label="Next month"
-              >
+              <button onClick={() => shiftMonth(1)} className={ICON_BTN} aria-label="Next month">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Total expenses</p>
-              <p className="text-xl font-bold text-foreground">{fmt(monthTotal)}</p>
+              <p className="text-xs font-bold text-[#a58b78]">Total expenses</p>
+              <p className="text-xl font-black text-[#4b3a2f]">{fmt(monthTotal)}</p>
             </div>
           </div>
 
           {loading ? (
             <div className="grid gap-2">
-              {[1, 2, 3].map(i => <div key={i} className="h-14 rounded-xl bg-muted animate-pulse" />)}
+              {[1, 2, 3].map(i => <div key={i} className="h-14 rounded-2xl bg-[#dcc8ba] animate-pulse" />)}
             </div>
           ) : monthTxns.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">No expenses for {monthLabel}.</div>
+            <div className="text-center py-16 text-[#a58b78] font-semibold">No expenses for {monthLabel}.</div>
           ) : (
             <>
               {/* Person × Category matrix */}
-              <div className="rounded-xl border bg-card overflow-x-auto mb-6">
+              <div className={cn('overflow-x-auto p-5', CARD)}>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b">
-                      <th className="text-left font-medium text-muted-foreground px-3 py-2">Category</th>
+                    <tr className="border-b border-[rgba(150,120,95,0.16)]">
+                      <th className="text-left font-extrabold text-[#a58b78] px-3 py-2">Category</th>
                       {matrix.colIds.map(colId => (
-                        <th key={colId} className="text-right font-medium text-muted-foreground px-3 py-2 whitespace-nowrap">
+                        <th key={colId} className="text-right font-extrabold text-[#a58b78] px-3 py-2 whitespace-nowrap">
                           {matrix.colLabels[colId]}
                         </th>
                       ))}
-                      <th className="text-right font-semibold text-foreground px-3 py-2">Total</th>
+                      <th className="text-right font-black text-[#4b3a2f] px-3 py-2">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {matrix.rowIds.map(rowId => (
-                      <tr key={rowId} className="border-b last:border-0">
-                        <td className="text-left font-medium text-foreground px-3 py-2 whitespace-nowrap">
+                      <tr key={rowId} className="border-b border-[rgba(150,120,95,0.1)] last:border-0">
+                        <td className="text-left font-bold text-[#4b3a2f] px-3 py-2 whitespace-nowrap">
                           {matrix.rowLabels[rowId]}
                         </td>
                         {matrix.colIds.map(colId => {
                           const v = matrix.cells[rowId]?.[colId]
                           return (
-                            <td key={colId} className="text-right px-3 py-2 text-muted-foreground">
+                            <td key={colId} className="text-right px-3 py-2 font-semibold text-[#a58b78]">
                               {v ? fmt(v) : '—'}
                             </td>
                           )
                         })}
-                        <td className="text-right font-semibold text-foreground px-3 py-2">
+                        <td className="text-right font-extrabold text-[#4b3a2f] px-3 py-2">
                           {fmt(matrix.rowTotals[rowId] ?? 0)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t bg-muted/40">
-                      <td className="text-left font-semibold text-foreground px-3 py-2">Total</td>
+                    <tr className="border-t border-[rgba(150,120,95,0.2)]">
+                      <td className="text-left font-black text-[#4b3a2f] px-3 py-2">Total</td>
                       {matrix.colIds.map(colId => (
-                        <td key={colId} className="text-right font-semibold text-foreground px-3 py-2">
+                        <td key={colId} className="text-right font-extrabold text-[#4b3a2f] px-3 py-2">
                           {fmt(matrix.colTotals[colId] ?? 0)}
                         </td>
                       ))}
-                      <td className="text-right font-bold text-foreground px-3 py-2">{fmt(matrix.grand)}</td>
+                      <td className="text-right font-black text-[#c1673f] px-3 py-2">{fmt(matrix.grand)}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
 
               {/* Detailed list */}
-              <h2 className="text-sm font-semibold text-muted-foreground mb-2">All expenses</h2>
+              <h2 className="text-sm font-extrabold text-[#a58b78] uppercase tracking-wide">All expenses</h2>
               <div className="grid gap-2">
                 {monthTxns.map(t => {
                   const payer = members.find(m => m.id === t.created_by)
                   return (
-                    <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-                      <div className={`w-2 h-8 rounded-full shrink-0 bg-${t.budget_categories?.color ?? 'gray'}-500`} />
+                    <div key={t.id} className={cn('flex items-center gap-3 p-3.5', CARD)}>
+                      <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: hexFor(t.budget_categories?.color) }} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">{t.title}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm font-bold text-[#4b3a2f]">{t.title}</p>
+                        <p className="text-xs font-semibold text-[#a58b78]">
                           {t.date}
                           {t.budget_categories && ` · ${t.budget_categories.name}`}
                           {t.created_by && ` · ${memberName(payer)}`}
                         </p>
                       </div>
-                      <span className="font-semibold text-sm shrink-0 text-foreground">
+                      <span className="font-extrabold text-sm shrink-0 text-[#4b3a2f]">
                         {fmt(Number(t.amount))}
                       </span>
-                      <div className="flex gap-1 shrink-0">
-                        <button onClick={() => openEditTxn(t)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      <div className="flex gap-1.5 shrink-0">
+                        <button onClick={() => openEditTxn(t)} className={ICON_BTN}>
+                          <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => removeTxn(t.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        <button onClick={() => removeTxn(t.id)} className={ICON_BTN_DANGER}>
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </div>
@@ -423,27 +409,27 @@ export default function BudgetPage() {
         <>
           {loading ? (
             <div className="grid gap-2">
-              {[1, 2, 3].map(i => <div key={i} className="h-14 rounded-xl bg-muted animate-pulse" />)}
+              {[1, 2, 3].map(i => <div key={i} className="h-14 rounded-2xl bg-[#dcc8ba] animate-pulse" />)}
             </div>
           ) : categories.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">No categories yet. Create one to organize expenses!</div>
+            <div className="text-center py-16 text-[#a58b78] font-semibold">No categories yet. Create one to organize expenses!</div>
           ) : (
             <div className="grid gap-2">
               {categories.map(c => (
-                <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-                  <div className={`w-3 h-3 rounded-full bg-${c.color}-500 shrink-0`} />
+                <div key={c.id} className={cn('flex items-center gap-3 p-3.5', CARD)}>
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: hexFor(c.color) }} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{c.name}</p>
+                    <p className="text-sm font-bold text-[#4b3a2f]">{c.name}</p>
                     {c.monthly_budget != null && (
-                      <p className="text-xs text-muted-foreground">Budget: {fmt(Number(c.monthly_budget))}/mo</p>
+                      <p className="text-xs font-semibold text-[#a58b78]">Budget: {fmt(Number(c.monthly_budget))}/mo</p>
                     )}
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openEditCat(c)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  <div className="flex gap-1.5 shrink-0">
+                    <button onClick={() => openEditCat(c)} className={ICON_BTN}>
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => removeCat(c.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    <button onClick={() => removeCat(c.id)} className={ICON_BTN_DANGER}>
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -455,17 +441,17 @@ export default function BudgetPage() {
 
       {/* Expense modal */}
       {showTxnModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl w-full max-w-md p-6 shadow-xl">
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-md')}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editingTxn ? 'Edit Expense' : 'New Expense'}</h2>
-              <button onClick={() => setShowTxnModal(false)}><X className="h-5 w-5 text-muted-foreground" /></button>
+              <h2 className="text-lg font-black text-[#4b3a2f]">{editingTxn ? 'Edit Expense' : 'New Expense'}</h2>
+              <button onClick={() => setShowTxnModal(false)} className={ICON_BTN}><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium mb-1 block">Title *</label>
+                <label className={LABEL}>Title *</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={txnForm.title}
                   onChange={e => setTxnForm(f => ({ ...f, title: e.target.value }))}
                   placeholder="e.g. Grocery run"
@@ -473,20 +459,20 @@ export default function BudgetPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Amount *</label>
+                  <label className={LABEL}>Amount *</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={txnForm.amount}
                     onChange={e => setTxnForm(f => ({ ...f, amount: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Paid by</label>
+                  <label className={LABEL}>Paid by</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={txnForm.paid_by}
                     onChange={e => setTxnForm(f => ({ ...f, paid_by: e.target.value }))}
                   >
@@ -499,9 +485,9 @@ export default function BudgetPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Category</label>
+                  <label className={LABEL}>Category</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={txnForm.category_id}
                     onChange={e => setTxnForm(f => ({ ...f, category_id: e.target.value }))}
                   >
@@ -512,27 +498,27 @@ export default function BudgetPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Date</label>
+                  <label className={LABEL}>Date</label>
                   <input
                     type="date"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={txnForm.date}
                     onChange={e => setTxnForm(f => ({ ...f, date: e.target.value }))}
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Notes</label>
+                <label className={LABEL}>Notes</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={txnForm.notes}
                   onChange={e => setTxnForm(f => ({ ...f, notes: e.target.value }))}
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowTxnModal(false)} className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">Cancel</button>
-              <button onClick={saveTxn} className="flex-1 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">
+              <button onClick={() => setShowTxnModal(false)} className={cn(BTN_GHOST, 'flex-1')}>Cancel</button>
+              <button onClick={saveTxn} className={cn(BTN_PRIMARY, 'flex-1')}>
                 {editingTxn ? 'Save Changes' : 'Add Expense'}
               </button>
             </div>
@@ -542,17 +528,17 @@ export default function BudgetPage() {
 
       {/* Category modal */}
       {showCatModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl w-full max-w-sm p-6 shadow-xl">
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-sm')}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editingCat ? 'Edit Category' : 'New Category'}</h2>
-              <button onClick={() => setShowCatModal(false)}><X className="h-5 w-5 text-muted-foreground" /></button>
+              <h2 className="text-lg font-black text-[#4b3a2f]">{editingCat ? 'Edit Category' : 'New Category'}</h2>
+              <button onClick={() => setShowCatModal(false)} className={ICON_BTN}><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium mb-1 block">Name *</label>
+                <label className={LABEL}>Name *</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={catForm.name}
                   onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Groceries"
@@ -560,20 +546,20 @@ export default function BudgetPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Monthly Budget ($)</label>
+                  <label className={LABEL}>Monthly Budget ($)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={catForm.monthly_budget}
                     onChange={e => setCatForm(f => ({ ...f, monthly_budget: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Color</label>
+                  <label className={LABEL}>Color</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary capitalize"
+                    className={cn(INPUT, 'capitalize')}
                     value={catForm.color}
                     onChange={e => setCatForm(f => ({ ...f, color: e.target.value }))}
                   >
@@ -583,8 +569,8 @@ export default function BudgetPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowCatModal(false)} className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">Cancel</button>
-              <button onClick={saveCat} className="flex-1 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">
+              <button onClick={() => setShowCatModal(false)} className={cn(BTN_GHOST, 'flex-1')}>Cancel</button>
+              <button onClick={saveCat} className={cn(BTN_PRIMARY, 'flex-1')}>
                 {editingCat ? 'Save Changes' : 'Create Category'}
               </button>
             </div>

@@ -7,6 +7,10 @@ import type { InventoryItem } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, Search, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import {
+  CARD, BTN_PRIMARY, BTN_GHOST, INPUT, LABEL, ICON_BTN, ICON_BTN_DANGER,
+  CHIP_GROUP, chipClass, SOLID_CHIP, SEVERITY_META, qualitativeChip, MODAL_OVERLAY, MODAL_PANEL,
+} from '@/lib/neu'
 
 type FormData = {
   name: string
@@ -127,39 +131,27 @@ export default function InventoryPage() {
   })
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Inventory</h1>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus className="h-4 w-4" /> Add Item
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-[28px] font-black tracking-tight text-[#4b3a2f]">Inventory</h1>
+        <button onClick={openAdd} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> Add Item
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#b09a86]" />
           <input
-            className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            className={cn(INPUT, 'pl-10')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search items..."
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className={CHIP_GROUP}>
           {usedCats.map(c => (
-            <button
-              key={c}
-              onClick={() => setCatFilter(c)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize',
-                catFilter === c
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-border text-muted-foreground hover:border-foreground'
-              )}
-            >
+            <button key={c} onClick={() => setCatFilter(c)} className={chipClass(catFilter === c)}>
               {c}
             </button>
           ))}
@@ -168,45 +160,43 @@ export default function InventoryPage() {
 
       {loading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-40 rounded-[22px] bg-[#dcc8ba] animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">No items found. Add one to track your household inventory!</div>
+        <div className="text-center py-16 text-[#a58b78] font-semibold">No items found. Add one to track your household inventory!</div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(item => {
             const ws = warrantyStatus(item.warranty_expiry)
             return (
-              <div key={item.id} className="p-4 rounded-xl border bg-card">
+              <div key={item.id} className={cn('p-4', CARD)}>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground truncate">{item.name}</h3>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">
-                        {item.category}
-                      </span>
+                    <h3 className="font-extrabold text-[#4b3a2f] truncate">{item.name}</h3>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <span className={SOLID_CHIP} style={{ backgroundColor: qualitativeChip(item.category).bg, color: qualitativeChip(item.category).tx }}>{item.category}</span>
                       {ws === 'expired' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex items-center gap-1">
+                        <span className={SOLID_CHIP} style={{ backgroundColor: SEVERITY_META.danger.bg, color: SEVERITY_META.danger.tx }}>
                           <AlertTriangle className="h-3 w-3" /> Warranty expired
                         </span>
                       )}
                       {ws === 'expiring' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 flex items-center gap-1">
+                        <span className={SOLID_CHIP} style={{ backgroundColor: SEVERITY_META.warning.bg, color: SEVERITY_META.warning.tx }}>
                           <AlertTriangle className="h-3 w-3" /> Expiring soon
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  <div className="flex gap-1.5 shrink-0">
+                    <button onClick={() => openEdit(item)} className={ICON_BTN}>
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => remove(item.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    <button onClick={() => remove(item.id)} className={ICON_BTN_DANGER}>
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
-                <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="space-y-1 text-xs font-semibold text-[#a58b78]">
                   {(item.brand || item.model) && (
                     <p>{[item.brand, item.model].filter(Boolean).join(' · ')}</p>
                   )}
@@ -222,27 +212,27 @@ export default function InventoryPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl w-full max-w-lg p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-lg')}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">{editing ? 'Edit Item' : 'New Item'}</h2>
-              <button onClick={() => setShowModal(false)}><X className="h-5 w-5 text-muted-foreground" /></button>
+              <h2 className="text-lg font-black text-[#4b3a2f]">{editing ? 'Edit Item' : 'New Item'}</h2>
+              <button onClick={() => setShowModal(false)} className={ICON_BTN}><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Name *</label>
+                  <label className={LABEL}>Name *</label>
                   <input
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="e.g. Refrigerator"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Category</label>
+                  <label className={LABEL}>Category</label>
                   <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary capitalize"
+                    className={cn(INPUT, 'capitalize')}
                     value={form.category}
                     onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                   >
@@ -252,35 +242,35 @@ export default function InventoryPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Brand</label>
+                  <label className={LABEL}>Brand</label>
                   <input
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.brand}
                     onChange={e => setForm(f => ({ ...f, brand: e.target.value }))}
                     placeholder="e.g. Samsung"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Model</label>
+                  <label className={LABEL}>Model</label>
                   <input
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.model}
                     onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Serial Number</label>
+                <label className={LABEL}>Serial Number</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.serial_number}
                   onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Location</label>
+                <label className={LABEL}>Location</label>
                 <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.location}
                   onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
                   placeholder="e.g. Kitchen, Garage"
@@ -288,47 +278,47 @@ export default function InventoryPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Purchase Date</label>
+                  <label className={LABEL}>Purchase Date</label>
                   <input
                     type="date"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.purchase_date}
                     onChange={e => setForm(f => ({ ...f, purchase_date: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Purchase Price ($)</label>
+                  <label className={LABEL}>Purchase Price ($)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className={INPUT}
                     value={form.purchase_price}
                     onChange={e => setForm(f => ({ ...f, purchase_price: e.target.value }))}
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Warranty Expiry</label>
+                <label className={LABEL}>Warranty Expiry</label>
                 <input
                   type="date"
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={INPUT}
                   value={form.warranty_expiry}
                   onChange={e => setForm(f => ({ ...f, warranty_expiry: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Notes</label>
+                <label className={LABEL}>Notes</label>
                 <textarea
-                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none h-16 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={cn(INPUT, 'resize-none h-16')}
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowModal(false)} className="flex-1 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">Cancel</button>
-              <button onClick={save} className="flex-1 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">
+              <button onClick={() => setShowModal(false)} className={cn(BTN_GHOST, 'flex-1')}>Cancel</button>
+              <button onClick={save} className={cn(BTN_PRIMARY, 'flex-1')}>
                 {editing ? 'Save Changes' : 'Add Item'}
               </button>
             </div>
