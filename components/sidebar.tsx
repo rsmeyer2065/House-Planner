@@ -31,6 +31,10 @@ const navItems = [
   { href: '/notes', label: 'Notes', icon: StickyNote },
 ]
 
+const RAISED = 'shadow-[3px_3px_8px_#ccb5a5,-3px_-3px_8px_#f7ebe1]'
+const RAISED_HOVER = 'hover:shadow-[3px_3px_8px_#ccb5a5,-3px_-3px_8px_#f7ebe1]'
+const INSET = 'shadow-[inset_4px_4px_9px_#ccb5a5,inset_-4px_-4px_9px_#f7ebe1]'
+
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
@@ -42,13 +46,18 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-60 shrink-0 bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border">
-        <span className="text-xl">🏡</span>
-        <span className="font-bold text-lg text-sidebar-foreground">Home Planner</span>
+    <aside className="hidden md:flex flex-col w-[250px] shrink-0 bg-[#e6d6ca] p-[26px] px-5 gap-[26px]">
+      <div className="flex items-center gap-[13px] px-1.5 py-1">
+        <div className={cn('w-[46px] h-[46px] rounded-2xl bg-[#e6d6ca] flex items-center justify-center text-xl', RAISED)}>
+          🏡
+        </div>
+        <div className="flex flex-col leading-tight">
+          <span className="font-black text-[18px] tracking-tight text-[#4b3a2f]">Home Planner</span>
+          <span className="font-bold text-[11px] text-[#a58b78] tracking-wider uppercase">The Meyer House</span>
+        </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      <nav className="flex flex-col gap-[7px]">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
@@ -56,37 +65,41 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-[13px] px-[15px] py-3 rounded-2xl font-bold text-[14.5px] no-underline transition-shadow',
                 active
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                  ? cn('text-[#c1673f] font-extrabold', INSET)
+                  : cn('text-[#8a7462] hover:text-[#5a4638]', RAISED_HOVER)
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
               {label}
+              {active && (
+                <span className="ml-auto w-[7px] h-[7px] rounded-full bg-[#c1673f] shadow-[0_0_0_3px_rgba(193,103,63,0.18)]" />
+              )}
             </Link>
           )
         })}
       </nav>
 
-      <div className="px-3 py-4 border-t border-sidebar-border space-y-1">
+      <div className="mt-auto flex flex-col gap-[7px]">
         <Link
           href="/settings"
           className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-            pathname === '/settings'
-              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+            'flex items-center gap-[13px] px-[15px] py-3 rounded-2xl font-bold text-[14.5px] text-[#8a7462] no-underline transition-shadow hover:text-[#5a4638]',
+            RAISED_HOVER
           )}
         >
-          <Settings className="h-4 w-4 shrink-0" />
+          <Settings className="h-[18px] w-[18px]" strokeWidth={2.25} />
           Settings
         </Link>
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors"
+          className={cn(
+            'flex items-center gap-[13px] px-[15px] py-3 rounded-2xl font-bold text-[14.5px] text-[#8a7462] no-underline transition-shadow hover:text-[#5a4638]',
+            RAISED_HOVER
+          )}
         >
-          <LogOut className="h-4 w-4 shrink-0" />
+          <LogOut className="h-[18px] w-[18px]" strokeWidth={2.25} />
           Sign out
         </button>
       </div>
