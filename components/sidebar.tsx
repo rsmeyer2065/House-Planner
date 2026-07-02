@@ -12,6 +12,7 @@ import {
   Phone,
   Package,
   StickyNote,
+  Sprout,
   Settings,
   LogOut,
 } from 'lucide-react'
@@ -29,6 +30,7 @@ const navItems = [
   { href: '/contacts', label: 'Contacts', icon: Phone },
   { href: '/inventory', label: 'Inventory', icon: Package },
   { href: '/notes', label: 'Notes', icon: StickyNote },
+  { href: '/plants', label: 'Plants', icon: Sprout },
 ]
 
 const RAISED = 'shadow-[3px_3px_8px_#ccb5a5,-3px_-3px_8px_#f7ebe1]'

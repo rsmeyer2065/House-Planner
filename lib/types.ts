@@ -184,3 +184,32 @@ export type EventAttendee = {
   created_at: string
   profiles?: { full_name: string | null; avatar_url: string | null } | null
 }
+
+export type LightRequirement = 'low' | 'medium' | 'bright_indirect' | 'direct_sun'
+
+export type Plant = {
+  id: string
+  household_id: string
+  name: string
+  species: string | null
+  room: string | null
+  light_requirement: LightRequirement | null
+  watering_interval_days: number | null
+  last_watered_at: string | null
+  acquired_date: string | null
+  toxic_to_pets: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type PlantPhoto = {
+  id: string
+  plant_id: string
+  household_id: string
+  photo_url: string
+  storage_path: string
+  taken_at: string
+  caption: string | null
+  created_at: string
+}
