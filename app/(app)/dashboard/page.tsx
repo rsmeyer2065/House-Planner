@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import type { Task, ActivityLogEntry } from '@/lib/types'
+import type { Task, ActivityLogEntry, Plant } from '@/lib/types'
 import {
   Hammer, CheckSquare2, CalendarDays, Wallet,
-  ShoppingCart, Phone, Package, StickyNote,
-  Activity, Clock, Plus, CircleAlert, Square,
+  ShoppingCart, Phone, Package, StickyNote, Sprout,
+  Activity, Clock, Plus, CircleAlert, Square, Droplet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow, isToday, isTomorrow, isThisWeek, format } from 'date-fns'
@@ -21,6 +21,20 @@ type Stats = {
   contacts: number
   inventory: number
   notes: number
+  plants: number
+}
+
+function plantWateringStatus(plant: Plant): 'overdue' | 'due_soon' | 'ok' | null {
+  if (!plant.watering_interval_days || !plant.last_watered_at) return null
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const due = new Date(plant.last_watered_at)
+  due.setDate(due.getDate() + plant.watering_interval_days)
+  const tomorrow = new Date(startOfToday)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  if (due < startOfToday) return 'overdue'
+  if (due <= tomorrow) return 'due_soon'
+  return 'ok'
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -75,17 +89,18 @@ export default function DashboardPage() {
   const [firstName, setFirstName] = useState('')
   const [stats, setStats] = useState<Stats>({
     projects: 0, tasks: 0, events: 0, monthExpenses: 0,
-    shopping: 0, contacts: 0, inventory: 0, notes: 0,
+    shopping: 0, contacts: 0, inventory: 0, notes: 0, plants: 0,
   })
   const [myTasks, setMyTasks] = useState<Task[]>([])
   const [activity, setActivity] = useState<ActivityLogEntry[]>([])
+  const [plantsNeedingWater, setPlantsNeedingWater] = useState<Plant[]>([])
   const [loading, setLoading] = useState(true)
   const [sideLoading, setSideLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const [projects, tasks, events, shopping, contacts, inventory, notes, transactions] = await Promise.all([
+      const [projects, tasks, events, shopping, contacts, inventory, notes, plants, transactions] = await Promise.all([
         supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('events').select('id', { count: 'exact', head: true }).gte('start_time', new Date().toISOString()),
@@ -93,6 +108,7 @@ export default function DashboardPage() {
         supabase.from('contacts').select('id', { count: 'exact', head: true }),
         supabase.from('inventory_items').select('id', { count: 'exact', head: true }),
         supabase.from('notes').select('id', { count: 'exact', head: true }),
+        supabase.from('plants').select('id', { count: 'exact', head: true }),
         supabase.from('transactions').select('amount, type, date'),
       ])
 
@@ -115,6 +131,7 @@ export default function DashboardPage() {
         contacts: contacts.count ?? 0,
         inventory: inventory.count ?? 0,
         notes: notes.count ?? 0,
+        plants: plants.count ?? 0,
       })
       setLoading(false)
     }
@@ -126,7 +143,7 @@ export default function DashboardPage() {
 
       const weekOut = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)
 
-      const [profileRes, myTasksRes, activityRes] = await Promise.all([
+      const [profileRes, myTasksRes, activityRes, plantsRes] = await Promise.all([
         supabase.from('profiles').select('full_name').eq('id', user.id).single(),
         supabase.from('tasks')
           .select('*')
@@ -139,11 +156,20 @@ export default function DashboardPage() {
           .select('*, profiles!user_id(full_name, avatar_url)')
           .order('created_at', { ascending: false })
           .limit(15),
+        supabase.from('plants').select('*'),
       ])
 
       setFirstName(profileRes.data?.full_name?.split(' ')[0] ?? '')
       setMyTasks(myTasksRes.data ?? [])
       setActivity((activityRes.data ?? []) as ActivityLogEntry[])
+      const needsWater = ((plantsRes.data ?? []) as Plant[])
+        .filter(p => {
+          const status = plantWateringStatus(p)
+          return status === 'overdue' || status === 'due_soon'
+        })
+        .sort((a, b) => plantWateringStatus(a) === 'overdue' ? -1 : plantWateringStatus(b) === 'overdue' ? 1 : 0)
+        .slice(0, 5)
+      setPlantsNeedingWater(needsWater)
       setSideLoading(false)
     }
 
@@ -160,6 +186,7 @@ export default function DashboardPage() {
     { href: '/contacts', label: 'Contacts', value: stats.contacts, icon: Phone, color: '#a07a52' },
     { href: '/inventory', label: 'Inventory Items', value: stats.inventory, icon: Package, color: '#b5843a' },
     { href: '/notes', label: 'Notes', value: stats.notes, icon: StickyNote, color: '#bd9038' },
+    { href: '/plants', label: 'Plants', value: stats.plants, icon: Sprout, color: '#7c9a6e' },
   ]
 
   return (
@@ -220,7 +247,7 @@ export default function DashboardPage() {
       )}
 
       {/* lower panels */}
-      <section className="grid md:grid-cols-2 gap-[22px]">
+      <section className="grid md:grid-cols-2 lg:grid-cols-3 gap-[22px]">
         {/* My Tasks */}
         <div className={cn('rounded-[28px] bg-[#e6d6ca] p-6 pb-3', RAISED_CARD)}>
           <div className="flex items-center justify-between mb-4">
@@ -262,6 +289,59 @@ export default function DashboardPage() {
                       {t.category}
                     </span>
                   </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Plants Needing Water */}
+        <div className={cn('rounded-[28px] bg-[#e6d6ca] p-6 pb-3', RAISED_CARD)}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="m-0 flex items-center gap-2.5 text-[18px] font-black text-[#4b3a2f]">
+              <span className={cn('w-[38px] h-[38px] rounded-xl flex items-center justify-center bg-[#e6d6ca] text-[#c1673f]', RAISED_SM)}>
+                <Droplet className="h-[18px] w-[18px]" strokeWidth={2.25} />
+              </span>
+              Plants Needing Water
+            </h2>
+            <Link href="/plants" className="text-[13px] font-extrabold text-[#c1673f] no-underline">
+              View all →
+            </Link>
+          </div>
+
+          {sideLoading ? (
+            <div className="space-y-2 pb-3">
+              {[1, 2, 3].map(i => <div key={i} className="h-10 rounded-lg bg-[#dcc8ba] animate-pulse" />)}
+            </div>
+          ) : plantsNeedingWater.length === 0 ? (
+            <p className="text-sm font-semibold text-[#a58b78] text-center py-6">
+              All your plants are watered. 🌿
+            </p>
+          ) : (
+            <div className="flex flex-col">
+              {plantsNeedingWater.map(p => {
+                const overdue = plantWateringStatus(p) === 'overdue'
+                return (
+                  <Link
+                    key={p.id}
+                    href="/plants"
+                    className="flex items-center gap-3.5 py-3.5 px-1.5 border-b border-[rgba(150,120,95,0.14)] last:border-b-0 no-underline"
+                  >
+                    <span className={cn('w-[26px] h-[26px] flex-none rounded-[9px] bg-[#e6d6ca] flex items-center justify-center', INSET_SM)} style={{ color: overdue ? '#c1673f' : '#b09a86' }}>
+                      <Droplet className="h-[15px] w-[15px]" strokeWidth={2.25} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="m-0 text-[15px] font-bold text-[#4b3a2f] overflow-hidden text-ellipsis whitespace-nowrap">{p.name}</p>
+                      <p className="mt-0.5 text-[12.5px] font-bold" style={{ color: overdue ? '#c1673f' : '#a58b78' }}>
+                        {overdue ? 'Overdue' : 'Due soon'}
+                      </p>
+                    </div>
+                    {p.room && (
+                      <span className={cn('text-[11px] font-extrabold tracking-wide uppercase text-[#b09a86] bg-[#e6d6ca] px-2.5 py-1.5 rounded-full', INSET_SM)}>
+                        {p.room}
+                      </span>
+                    )}
+                  </Link>
                 )
               })}
             </div>
