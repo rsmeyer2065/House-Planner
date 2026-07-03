@@ -213,3 +213,15 @@ export type PlantPhoto = {
   caption: string | null
   created_at: string
 }
+
+export type ProjectPhotoKind = 'before' | 'after'
+
+export type ProjectPhoto = {
+  id: string
+  project_id: string
+  household_id: string
+  kind: ProjectPhotoKind
+  photo_url: string
+  storage_path: string
+  created_at: string
+}

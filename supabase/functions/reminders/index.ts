@@ -54,7 +54,7 @@ async function sendEmail(to: string, name: string, items: ReminderItem[]) {
   })
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async () => {
   const now = new Date()
   const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
