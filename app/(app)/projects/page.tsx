@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
+import { useOpenAddParam } from '@/lib/use-open-add-param'
 import type { Project, ProjectStatus, Priority } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, Tag, Wallet, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -65,6 +66,8 @@ export default function ProjectsPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useOpenAddParam(openAdd, !loading)
 
   function openAdd() {
     setEditing(null)

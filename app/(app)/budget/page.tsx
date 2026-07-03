@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
+import { useOpenAddParam } from '@/lib/use-open-add-param'
 import type { Transaction, BudgetCategory, Profile } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -151,6 +152,8 @@ export default function BudgetPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useOpenAddParam(openAddTxn, !loading)
 
   const monthTxns = transactions.filter(t => t.date.slice(0, 7) === selectedMonth)
   const monthTotal = monthTxns.reduce((a, t) => a + Number(t.amount), 0)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import type { Task, ActivityLogEntry, Plant } from '@/lib/types'
@@ -49,6 +49,18 @@ const ACTION_LABELS: Record<string, string> = {
 
 const AVATAR_COLORS = ['#bf6a48', '#a98a3a', '#bd9038', '#b56a5e', '#a07a52', '#bd6b6f', '#b5843a', '#c47a3d']
 
+const QUICK_ADD_ITEMS = [
+  { label: 'Project', href: '/projects?add=1', icon: Hammer, color: '#bf6a48' },
+  { label: 'Task', href: '/tasks?add=1', icon: CheckSquare2, color: '#c47a3d' },
+  { label: 'Event', href: '/calendar?add=1', icon: CalendarDays, color: '#a98a3a' },
+  { label: 'Expense', href: '/budget?add=1', icon: Wallet, color: '#b56a5e' },
+  { label: 'Shopping list', href: '/shopping?add=1', icon: ShoppingCart, color: '#bd6b6f' },
+  { label: 'Contact', href: '/contacts?add=1', icon: Phone, color: '#a07a52' },
+  { label: 'Inventory item', href: '/inventory?add=1', icon: Package, color: '#b5843a' },
+  { label: 'Note', href: '/notes?add=1', icon: StickyNote, color: '#bd9038' },
+  { label: 'Plant', href: '/plants?add=1', icon: Sprout, color: '#7c9a6e' },
+]
+
 const RAISED_CARD = 'shadow-[8px_8px_18px_#ccb5a5,-8px_-8px_18px_#f7ebe1]'
 const RAISED_CARD_HOVER = 'hover:bg-[#e9dacf] hover:shadow-[10px_10px_22px_#c7af9e,-10px_-10px_22px_#faf0e7]'
 const INSET_SM = 'shadow-[inset_3px_3px_7px_#ccb5a5,inset_-3px_-3px_7px_#f7ebe1]'
@@ -96,6 +108,26 @@ export default function DashboardPage() {
   const [plantsNeedingWater, setPlantsNeedingWater] = useState<Plant[]>([])
   const [loading, setLoading] = useState(true)
   const [sideLoading, setSideLoading] = useState(true)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const quickAddRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!quickAddOpen) return
+    function onPointerDown(e: PointerEvent) {
+      if (quickAddRef.current && !quickAddRef.current.contains(e.target as Node)) {
+        setQuickAddOpen(false)
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setQuickAddOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [quickAddOpen])
 
   useEffect(() => {
     async function load() {
@@ -200,16 +232,44 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3.5">
-          <button
-            className={cn(
-              'flex items-center gap-2 border-0 cursor-pointer font-extrabold text-[14.5px] text-[#faf1e9] bg-[#c1673f] px-5 py-3.5 rounded-2xl',
-              'shadow-[5px_5px_12px_#b07048,-4px_-4px_10px_#f7ebe1,inset_1px_1px_1px_rgba(255,255,255,0.25)]',
-              'active:shadow-[inset_3px_3px_7px_#984e2c,inset_-2px_-2px_6px_#cf7550] active:bg-[#b25e38]'
+          <div ref={quickAddRef} className="relative">
+            <button
+              onClick={() => setQuickAddOpen(o => !o)}
+              aria-haspopup="menu"
+              aria-expanded={quickAddOpen}
+              className={cn(
+                'flex items-center gap-2 border-0 cursor-pointer font-extrabold text-[14.5px] text-[#faf1e9] bg-[#c1673f] px-5 py-3.5 rounded-2xl',
+                'shadow-[5px_5px_12px_#b07048,-4px_-4px_10px_#f7ebe1,inset_1px_1px_1px_rgba(255,255,255,0.25)]',
+                'active:shadow-[inset_3px_3px_7px_#984e2c,inset_-2px_-2px_6px_#cf7550] active:bg-[#b25e38]'
+              )}
+            >
+              <Plus className="h-[18px] w-[18px]" strokeWidth={2.25} />
+              Quick add
+            </button>
+
+            {quickAddOpen && (
+              <div
+                role="menu"
+                className={cn(
+                  'absolute left-0 sm:left-auto sm:right-0 top-full mt-2.5 w-60 z-50 rounded-[22px] bg-[#e6d6ca] p-2 max-h-[70vh] overflow-y-auto',
+                  RAISED_CARD
+                )}
+              >
+                {QUICK_ADD_ITEMS.map(({ label, href, icon: Icon, color }) => (
+                  <Link
+                    key={href}
+                    role="menuitem"
+                    href={href}
+                    onClick={() => setQuickAddOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl no-underline text-[14px] font-bold text-[#4b3a2f] hover:bg-[#e9dacf]"
+                  >
+                    <Icon className="h-[17px] w-[17px]" strokeWidth={2.25} style={{ color }} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
             )}
-          >
-            <Plus className="h-[18px] w-[18px]" strokeWidth={2.25} />
-            Quick add
-          </button>
+          </div>
           <div className={cn('w-[52px] h-[52px] rounded-full bg-[#e6d6ca] flex items-center justify-center font-black text-[16px] text-[#c1673f]', RAISED_SM)}>
             {initials(firstName)}
           </div>

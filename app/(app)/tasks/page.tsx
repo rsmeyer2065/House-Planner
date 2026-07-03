@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
+import { useOpenAddParam } from '@/lib/use-open-add-param'
 import type { Task, Priority, RecurrenceType, Profile } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, CheckSquare2, Square, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -62,6 +63,8 @@ export default function TasksPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useOpenAddParam(openAdd, !loading)
 
   async function logActivity(householdId: string, userId: string, actionType: string, entityId: string, entityTitle: string) {
     await supabase.from('activity_log').insert({

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -40,6 +41,20 @@ const INSET = 'shadow-[inset_4px_4px_9px_#ccb5a5,inset_-4px_-4px_9px_#f7ebe1]'
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [householdName, setHouseholdName] = useState('')
+
+  useEffect(() => {
+    async function loadHousehold() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: prof } = await supabase.from('profiles').select('household_id').eq('id', user.id).single()
+      if (!prof?.household_id) return
+      const { data: hh } = await supabase.from('households').select('name').eq('id', prof.household_id).single()
+      if (hh?.name) setHouseholdName(hh.name)
+    }
+    loadHousehold()
+  }, [])
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -55,7 +70,7 @@ export function Sidebar() {
         </div>
         <div className="flex flex-col leading-tight">
           <span className="font-black text-[18px] tracking-tight text-[#4b3a2f]">Home Planner</span>
-          <span className="font-bold text-[11px] text-[#a58b78] tracking-wider uppercase">The Meyer House</span>
+          <span className="font-bold text-[11px] text-[#a58b78] tracking-wider uppercase">{householdName || ' '}</span>
         </div>
       </div>
 
