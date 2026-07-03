@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -12,98 +13,101 @@ import {
   RAISED_SM, CARD, BTN_PRIMARY, BTN_GHOST, BTN_DANGER_GHOST, INPUT, ICON_BTN, MODAL_OVERLAY, MODAL_PANEL,
 } from '@/lib/neu'
 
+type ShoppingData = {
+  lists: ShoppingList[]
+  items: Record<string, ShoppingItem[]>
+}
+
 export default function ShoppingPage() {
-  const [lists, setLists] = useState<ShoppingList[]>([])
-  const [items, setItems] = useState<Record<string, ShoppingItem[]>>({})
-  const [loading, setLoading] = useState(true)
-  const [selectedList, setSelectedList] = useState<string | null>(null)
+  const [selectedListId, setSelectedListId] = useState<string | null>(null)
   const [showListModal, setShowListModal] = useState(false)
   const [listName, setListName] = useState('')
   const [newItem, setNewItem] = useState({ name: '', quantity: '', category: '' })
   const [showItemForm, setShowItemForm] = useState(false)
   const [isLive, setIsLive] = useState(false)
 
-  const supabase = createClient()
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
-  const listsRef = useRef<ShoppingList[]>([])
+  const [supabase] = useState(() => createClient())
+  const queryClient = useQueryClient()
+
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['shopping'],
+    queryFn: async (): Promise<ShoppingData> => {
+      const { data: listsData, error: listsError } = await supabase
+        .from('shopping_lists')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (listsError) throw listsError
+      const lists: ShoppingList[] = listsData ?? []
+
+      const grouped: Record<string, ShoppingItem[]> = {}
+      if (lists.length > 0) {
+        const ids = lists.map(l => l.id)
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('shopping_items')
+          .select('*')
+          .in('list_id', ids)
+          .order('created_at', { ascending: true })
+        if (itemsError) throw itemsError
+        for (const item of itemsData ?? []) {
+          if (!grouped[item.list_id]) grouped[item.list_id] = []
+          grouped[item.list_id].push(item)
+        }
+      }
+      return { lists, items: grouped }
+    },
+  })
+
+  const lists = data?.lists ?? []
+  const items = data?.items ?? {}
+  // Fall back to the first list when nothing is selected (or the selected
+  // list no longer exists, e.g. after it was deleted).
+  const selectedList = selectedListId && lists.some(l => l.id === selectedListId)
+    ? selectedListId
+    : lists[0]?.id ?? null
 
   useOpenAddParam(() => setShowListModal(true), !loading)
 
-  async function load() {
-    const { data: listsData } = await supabase
-      .from('shopping_lists')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setLists(listsData ?? [])
-    listsRef.current = listsData ?? []
-
-    if (listsData && listsData.length > 0) {
-      const ids = listsData.map(l => l.id)
-      const { data: itemsData } = await supabase
-        .from('shopping_items')
-        .select('*')
-        .in('list_id', ids)
-        .order('created_at', { ascending: true })
-
-      const grouped: Record<string, ShoppingItem[]> = {}
-      for (const item of itemsData ?? []) {
-        if (!grouped[item.list_id]) grouped[item.list_id] = []
-        grouped[item.list_id].push(item)
-      }
-      setItems(grouped)
-
-      if (!selectedList && listsData.length > 0) {
-        setSelectedList(listsData[0].id)
-      }
-    }
-    setLoading(false)
-  }
-
   useEffect(() => {
-    load().then(() => {
-      const channel = supabase.channel('shopping-realtime')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'shopping_items' },
-          (payload) => {
+    const channel = supabase.channel('shopping-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shopping_items' },
+        (payload) => {
+          queryClient.setQueryData<ShoppingData>(['shopping'], prev => {
+            if (!prev) return prev
             const listId =
               (payload.new as ShoppingItem)?.list_id ??
               (payload.old as Partial<ShoppingItem>)?.list_id
 
-            if (!listId || !listsRef.current.find(l => l.id === listId)) return
+            if (!listId || !prev.lists.find(l => l.id === listId)) return prev
 
-            setItems(prev => {
-              const current = prev[listId] ?? []
-              if (payload.eventType === 'INSERT') {
-                const newRow = payload.new as ShoppingItem
-                if (current.find(i => i.id === newRow.id)) return prev
-                return { ...prev, [listId]: [...current, newRow] }
-              }
-              if (payload.eventType === 'UPDATE') {
-                const updated = payload.new as ShoppingItem
-                return { ...prev, [listId]: current.map(i => i.id === updated.id ? updated : i) }
-              }
-              if (payload.eventType === 'DELETE') {
-                const deleted = payload.old as Partial<ShoppingItem>
-                return { ...prev, [listId]: current.filter(i => i.id !== deleted.id) }
-              }
+            const current = prev.items[listId] ?? []
+            let next: ShoppingItem[]
+            if (payload.eventType === 'INSERT') {
+              const newRow = payload.new as ShoppingItem
+              if (current.find(i => i.id === newRow.id)) return prev
+              next = [...current, newRow]
+            } else if (payload.eventType === 'UPDATE') {
+              const updated = payload.new as ShoppingItem
+              next = current.map(i => i.id === updated.id ? updated : i)
+            } else if (payload.eventType === 'DELETE') {
+              const deleted = payload.old as Partial<ShoppingItem>
+              next = current.filter(i => i.id !== deleted.id)
+            } else {
               return prev
-            })
-          }
-        )
-        .subscribe((status) => {
-          setIsLive(status === 'SUBSCRIBED')
-        })
-
-      channelRef.current = channel
-    })
+            }
+            return { ...prev, items: { ...prev.items, [listId]: next } }
+          })
+        }
+      )
+      .subscribe((status) => {
+        setIsLive(status === 'SUBSCRIBED')
+      })
 
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
-      }
+      supabase.removeChannel(channel)
     }
-  }, [])
+  }, [supabase, queryClient])
 
   async function createList() {
     if (!listName.trim()) return
@@ -117,15 +121,15 @@ export default function ShoppingPage() {
     if (error) { toast.error(error.message); return }
     setListName('')
     setShowListModal(false)
-    await load()
-    if (data) setSelectedList(data.id)
+    await queryClient.invalidateQueries({ queryKey: ['shopping'] })
+    if (data) setSelectedListId(data.id)
   }
 
   async function deleteList(id: string) {
     if (!confirm('Delete this list and all its items?')) return
     await supabase.from('shopping_lists').delete().eq('id', id)
-    if (selectedList === id) setSelectedList(null)
-    load()
+    if (selectedListId === id) setSelectedListId(null)
+    queryClient.invalidateQueries({ queryKey: ['shopping'] })
   }
 
   async function addItem() {
@@ -204,7 +208,7 @@ export default function ShoppingPage() {
             {lists.map(list => (
               <div key={list.id} className="flex items-center gap-2 group">
                 <button
-                  onClick={() => setSelectedList(list.id)}
+                  onClick={() => setSelectedListId(list.id)}
                   className={cn(
                     'flex-1 text-left px-3.5 py-2.5 rounded-2xl text-sm font-bold transition-shadow truncate',
                     selectedList === list.id

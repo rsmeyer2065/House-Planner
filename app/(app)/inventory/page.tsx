@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -35,8 +36,6 @@ const EMPTY_FORM: FormData = {
 const CATEGORIES = ['general', 'appliance', 'electronics', 'furniture', 'tools', 'hvac', 'plumbing', 'electrical', 'outdoor', 'vehicle', 'other']
 
 export default function InventoryPage() {
-  const [items, setItems] = useState<InventoryItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<string>('all')
   const [showModal, setShowModal] = useState(false)
@@ -44,14 +43,18 @@ export default function InventoryPage() {
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
 
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
-  async function load() {
-    const { data } = await supabase.from('inventory_items').select('*').order('name')
-    setItems(data ?? [])
-    setLoading(false)
-  }
+  const { data: items = [], isPending: loading } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: async (): Promise<InventoryItem[]> => {
+      const { data, error } = await supabase.from('inventory_items').select('*').order('name')
+      if (error) throw error
+      return data ?? []
+    },
+  })
 
-  useEffect(() => { load() }, [])
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['inventory'] })
 
   useOpenAddParam(openAdd, !loading)
 
@@ -102,13 +105,13 @@ export default function InventoryPage() {
       if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
-    load()
+    refresh()
   }
 
   async function remove(id: string) {
     if (!confirm('Delete this item?')) return
     await supabase.from('inventory_items').delete().eq('id', id)
-    load()
+    refresh()
   }
 
   function warrantyStatus(expiry: string | null): 'expired' | 'expiring' | 'valid' | null {

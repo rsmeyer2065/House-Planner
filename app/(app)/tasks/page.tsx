@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -32,10 +33,6 @@ const EMPTY_FORM: FormData = {
 }
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [members, setMembers] = useState<Profile[]>([])
-  const [currentUserId, setCurrentUserId] = useState<string>('')
-  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all')
   const [assignFilter, setAssignFilter] = useState<AssignFilter>('all')
   const [showModal, setShowModal] = useState(false)
@@ -43,26 +40,36 @@ export default function TasksPage() {
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
 
   const supabase = createClient()
+  const queryClient = useQueryClient()
+
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: async (): Promise<{ tasks: Task[]; members: Profile[]; currentUserId: string }> => {
+      const [{ data: { user } }, tasksRes, membersRes] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('tasks')
+          .select('*')
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false }),
+        supabase.from('profiles').select('*'),
+      ])
+      if (tasksRes.error) throw tasksRes.error
+      if (membersRes.error) throw membersRes.error
+      return {
+        tasks: tasksRes.data ?? [],
+        members: membersRes.data ?? [],
+        currentUserId: user?.id ?? '',
+      }
+    },
+  })
+
+  const tasks = data?.tasks ?? []
+  const members = data?.members ?? []
+  const currentUserId = data?.currentUserId ?? ''
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['tasks'] })
 
   const profileMap = Object.fromEntries(members.map(m => [m.id, m]))
-
-  async function load() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) setCurrentUserId(user.id)
-
-    const [tasksRes, membersRes] = await Promise.all([
-      supabase.from('tasks')
-        .select('*')
-        .order('due_date', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: false }),
-      supabase.from('profiles').select('*'),
-    ])
-    setTasks(tasksRes.data ?? [])
-    setMembers(membersRes.data ?? [])
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [])
 
   useOpenAddParam(openAdd, !loading)
 
@@ -90,7 +97,7 @@ export default function TasksPage() {
         await logActivity(household_id, currentUserId, 'task_completed', task.id, task.title)
       }
     }
-    load()
+    refresh()
   }
 
   function openAdd() {
@@ -140,13 +147,13 @@ export default function TasksPage() {
       }
     }
     setShowModal(false)
-    load()
+    refresh()
   }
 
   async function remove(id: string) {
     if (!confirm('Delete this task?')) return
     await supabase.from('tasks').delete().eq('id', id)
-    load()
+    refresh()
   }
 
   const filtered = tasks.filter(t => {

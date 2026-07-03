@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -50,32 +51,39 @@ const EMPTY_FORM: FormData = {
 }
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<ProjectStatus | 'all'>('all')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
-  const [photosByProject, setPhotosByProject] = useState<Record<string, ProjectPhoto[]>>({})
   const [photosProject, setPhotosProject] = useState<Project | null>(null)
   const [uploadingKind, setUploadingKind] = useState<ProjectPhotoKind | null>(null)
 
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
-  async function load() {
-    const [{ data }, { data: photoRows }] = await Promise.all([
-      supabase.from('projects').select('*').order('created_at', { ascending: false }),
-      supabase.from('project_photos').select('*'),
-    ])
-    setProjects(data ?? [])
-    setPhotosByProject((photoRows ?? []).reduce<Record<string, ProjectPhoto[]>>((acc, photo) => {
-      (acc[photo.project_id] ??= []).push(photo)
-      return acc
-    }, {}))
-    setLoading(false)
-  }
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async (): Promise<{ projects: Project[]; photosByProject: Record<string, ProjectPhoto[]> }> => {
+      const [projectsRes, photosRes] = await Promise.all([
+        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+        supabase.from('project_photos').select('*'),
+      ])
+      if (projectsRes.error) throw projectsRes.error
+      if (photosRes.error) throw photosRes.error
+      return {
+        projects: projectsRes.data ?? [],
+        photosByProject: (photosRes.data ?? []).reduce<Record<string, ProjectPhoto[]>>((acc, photo) => {
+          (acc[photo.project_id] ??= []).push(photo)
+          return acc
+        }, {}),
+      }
+    },
+  })
 
-  useEffect(() => { load() }, [])
+  const projects = data?.projects ?? []
+  const photosByProject = data?.photosByProject ?? {}
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['projects'] })
 
   useOpenAddParam(openAdd, !loading)
 
@@ -124,7 +132,7 @@ export default function ProjectsPage() {
       if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
-    load()
+    refresh()
   }
 
   async function remove(id: string) {
@@ -134,7 +142,7 @@ export default function ProjectsPage() {
       await supabase.storage.from('project-photos').remove(rows.map(r => r.storage_path))
     }
     await supabase.from('projects').delete().eq('id', id)
-    load()
+    refresh()
   }
 
   async function uploadPhoto(project: Project, kind: ProjectPhotoKind, file: File) {
@@ -159,7 +167,7 @@ export default function ProjectsPage() {
       return
     }
     if (old) await supabase.storage.from('project-photos').remove([old.storage_path])
-    await load()
+    await refresh()
     setUploadingKind(null)
   }
 
@@ -167,7 +175,7 @@ export default function ProjectsPage() {
     if (!confirm('Delete this photo?')) return
     await supabase.storage.from('project-photos').remove([photo.storage_path])
     await supabase.from('project_photos').delete().eq('id', photo.id)
-    load()
+    refresh()
   }
 
   const filtered = filter === 'all' ? projects : projects.filter(p => p.status === filter)

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -32,8 +33,6 @@ const EMPTY_FORM: FormData = {
 }
 
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<string>('all')
   const [showModal, setShowModal] = useState(false)
@@ -41,14 +40,18 @@ export default function ContactsPage() {
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
 
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
-  async function load() {
-    const { data } = await supabase.from('contacts').select('*').order('name')
-    setContacts(data ?? [])
-    setLoading(false)
-  }
+  const { data: contacts = [], isPending: loading } = useQuery({
+    queryKey: ['contacts'],
+    queryFn: async (): Promise<Contact[]> => {
+      const { data, error } = await supabase.from('contacts').select('*').order('name')
+      if (error) throw error
+      return data ?? []
+    },
+  })
 
-  useEffect(() => { load() }, [])
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['contacts'] })
 
   useOpenAddParam(openAdd, !loading)
 
@@ -95,13 +98,13 @@ export default function ContactsPage() {
       if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
-    load()
+    refresh()
   }
 
   async function remove(id: string) {
     if (!confirm('Delete this contact?')) return
     await supabase.from('contacts').delete().eq('id', id)
-    load()
+    refresh()
   }
 
   const filtered = contacts.filter(c => {
