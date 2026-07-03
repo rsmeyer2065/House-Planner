@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
-import type { Project, ProjectStatus, Priority } from '@/lib/types'
-import { Plus, X, Pencil, Trash2, Tag, Wallet, Calendar } from 'lucide-react'
+import type { Project, ProjectStatus, Priority, ProjectPhoto, ProjectPhotoKind } from '@/lib/types'
+import { Plus, X, Pencil, Trash2, Tag, Wallet, Calendar, Camera, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -56,12 +56,22 @@ export default function ProjectsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
+  const [photosByProject, setPhotosByProject] = useState<Record<string, ProjectPhoto[]>>({})
+  const [photosProject, setPhotosProject] = useState<Project | null>(null)
+  const [uploadingKind, setUploadingKind] = useState<ProjectPhotoKind | null>(null)
 
   const supabase = createClient()
 
   async function load() {
-    const { data } = await supabase.from('projects').select('*').order('created_at', { ascending: false })
+    const [{ data }, { data: photoRows }] = await Promise.all([
+      supabase.from('projects').select('*').order('created_at', { ascending: false }),
+      supabase.from('project_photos').select('*'),
+    ])
     setProjects(data ?? [])
+    setPhotosByProject((photoRows ?? []).reduce<Record<string, ProjectPhoto[]>>((acc, photo) => {
+      (acc[photo.project_id] ??= []).push(photo)
+      return acc
+    }, {}))
     setLoading(false)
   }
 
@@ -118,8 +128,45 @@ export default function ProjectsPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm('Delete this project?')) return
+    if (!confirm('Delete this project and its photos?')) return
+    const { data: rows } = await supabase.from('project_photos').select('storage_path').eq('project_id', id)
+    if (rows?.length) {
+      await supabase.storage.from('project-photos').remove(rows.map(r => r.storage_path))
+    }
     await supabase.from('projects').delete().eq('id', id)
+    load()
+  }
+
+  async function uploadPhoto(project: Project, kind: ProjectPhotoKind, file: File) {
+    setUploadingKind(kind)
+    const old = photosByProject[project.id]?.find(p => p.kind === kind)
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+    const path = `${project.household_id}/${project.id}/${kind}-${crypto.randomUUID()}-${safeName}`
+    const { error: upErr } = await supabase.storage.from('project-photos').upload(path, file)
+    if (upErr) { toast.error(upErr.message); setUploadingKind(null); return }
+    const { data: urlData } = supabase.storage.from('project-photos').getPublicUrl(path)
+    const { error: upsertErr } = await supabase.from('project_photos').upsert({
+      project_id: project.id,
+      household_id: project.household_id,
+      kind,
+      photo_url: urlData.publicUrl,
+      storage_path: path,
+    }, { onConflict: 'project_id,kind' })
+    if (upsertErr) {
+      await supabase.storage.from('project-photos').remove([path])
+      toast.error(upsertErr.message)
+      setUploadingKind(null)
+      return
+    }
+    if (old) await supabase.storage.from('project-photos').remove([old.storage_path])
+    await load()
+    setUploadingKind(null)
+  }
+
+  async function deletePhoto(photo: ProjectPhoto) {
+    if (!confirm('Delete this photo?')) return
+    await supabase.storage.from('project-photos').remove([photo.storage_path])
+    await supabase.from('project_photos').delete().eq('id', photo.id)
     load()
   }
 
@@ -177,6 +224,21 @@ export default function ProjectsPage() {
                   {p.description && (
                     <p className="text-[13.5px] font-semibold text-[#8a7462] leading-relaxed line-clamp-2">{p.description}</p>
                   )}
+                  {(photosByProject[p.id]?.length ?? 0) > 0 && (
+                    <div className="flex items-start gap-3">
+                      {(['before', 'after'] as const).map(kind => {
+                        const photo = photosByProject[p.id]?.find(ph => ph.kind === kind)
+                        if (!photo) return null
+                        return (
+                          <div key={kind} className="flex flex-col items-center gap-1">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={photo.photo_url} alt={`${p.title} — ${kind}`} className="w-14 h-14 rounded-xl object-cover" />
+                            <span className="text-[10px] font-bold text-[#a58b78] uppercase">{kind}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-4 text-[12.5px] font-bold text-[#a58b78] mt-0.5">
                     <span className="inline-flex items-center gap-1.5"><Tag className="h-[13px] w-[13px]" /> {p.category}</span>
                     {hasBudget && (
@@ -201,6 +263,9 @@ export default function ProjectsPage() {
                 <div className="flex flex-col gap-2 flex-none">
                   <button onClick={() => openEdit(p)} className={ICON_BTN}>
                     <Pencil className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setPhotosProject(p)} className={ICON_BTN}>
+                    <Camera className="h-4 w-4" />
                   </button>
                   <button onClick={() => remove(p.id)} className={ICON_BTN_DANGER}>
                     <Trash2 className="h-4 w-4" />
@@ -328,6 +393,74 @@ export default function ProjectsPage() {
               <button onClick={save} className={cn(BTN_PRIMARY, 'flex-1')}>
                 {editing ? 'Save Changes' : 'Create Project'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {photosProject && (
+        <div className={MODAL_OVERLAY}>
+          <div className={cn(MODAL_PANEL, 'max-w-lg')}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-black text-[#4b3a2f]">Before & After — {photosProject.title}</h2>
+              <button onClick={() => setPhotosProject(null)} className={ICON_BTN}><X className="h-4 w-4" /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {(['before', 'after'] as const).map(kind => {
+                const photo = photosByProject[photosProject.id]?.find(ph => ph.kind === kind)
+                const busy = uploadingKind === kind
+                return (
+                  <div key={kind} className="flex flex-col gap-2">
+                    <span className="text-[11px] font-bold text-[#a58b78] uppercase text-center">{kind}</span>
+                    {photo ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={photo.photo_url} alt={`${photosProject.title} — ${kind}`} className="w-full aspect-square rounded-2xl object-cover" />
+                        <div className="flex items-center gap-2">
+                          <label className={cn(BTN_GHOST, 'flex-1 cursor-pointer', busy && 'opacity-50 pointer-events-none')}>
+                            <Upload className="h-4 w-4" strokeWidth={2.5} /> {busy ? 'Uploading...' : 'Replace'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={busy}
+                              onChange={e => {
+                                const file = e.target.files?.[0]
+                                if (file) uploadPhoto(photosProject, kind, file)
+                                e.target.value = ''
+                              }}
+                            />
+                          </label>
+                          <button onClick={() => deletePhoto(photo)} className={ICON_BTN_DANGER}>
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <label className={cn(
+                        'w-full aspect-square rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer',
+                        'text-[#a58b78] font-semibold text-sm text-center',
+                        'shadow-[inset_4px_4px_10px_#ccb5a5,inset_-4px_-4px_10px_#f7ebe1] bg-[#e6d6ca]',
+                        busy && 'opacity-50 pointer-events-none',
+                      )}>
+                        <Camera className="h-6 w-6" />
+                        {busy ? 'Uploading...' : `Add ${kind} photo`}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={busy}
+                          onChange={e => {
+                            const file = e.target.files?.[0]
+                            if (file) uploadPhoto(photosProject, kind, file)
+                            e.target.value = ''
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
