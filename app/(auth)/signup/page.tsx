@@ -91,7 +91,7 @@ export default function SignupPage() {
       <CardHeader>
         <CardTitle>Create your account</CardTitle>
         <CardDescription>
-          Set up your household or join your partner's
+          Set up your household or join your partner&apos;s
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSignup}>
@@ -150,7 +150,7 @@ export default function SignupPage() {
                 onChange={(e) => setHouseholdName(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                You'll get an invite code to share with your partner after signing up.
+                You&apos;ll get an invite code to share with your partner after signing up.
               </p>
             </TabsContent>
             <TabsContent value="join" className="space-y-2 mt-3">

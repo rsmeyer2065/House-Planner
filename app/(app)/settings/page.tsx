@@ -40,7 +40,7 @@ export default function SettingsPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [supabase])
 
   async function saveProfile() {
     if (!profile) return
