@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
+import { useOpenAddParam } from '@/lib/use-open-add-param'
 import type { CalendarEvent, EventAttendee, RecurrenceType } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight, MapPin, Clock, Check, Minus, X as XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -103,6 +104,8 @@ export default function CalendarPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useOpenAddParam(openAdd, !loading)
 
   const year = current.getFullYear()
   const month = current.getMonth()

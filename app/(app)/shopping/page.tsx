@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
+import { useOpenAddParam } from '@/lib/use-open-add-param'
 import type { ShoppingList, ShoppingItem } from '@/lib/types'
 import { Plus, X, Trash2, CheckSquare2, Square, ShoppingCart } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -25,6 +26,8 @@ export default function ShoppingPage() {
   const supabase = createClient()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const listsRef = useRef<ShoppingList[]>([])
+
+  useOpenAddParam(() => setShowListModal(true), !loading)
 
   async function load() {
     const { data: listsData } = await supabase

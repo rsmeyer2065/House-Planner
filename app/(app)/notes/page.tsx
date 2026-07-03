@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
+import { useOpenAddParam } from '@/lib/use-open-add-param'
 import type { Note } from '@/lib/types'
 import { Plus, X, Trash2, Pin, PinOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -39,6 +40,8 @@ export default function NotesPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useOpenAddParam(openAdd, !loading)
 
   function openAdd() {
     setEditing(null)

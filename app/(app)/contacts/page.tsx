@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
+import { useOpenAddParam } from '@/lib/use-open-add-param'
 import type { Contact } from '@/lib/types'
 import { Plus, X, Pencil, Trash2, Phone, Mail, Globe, MapPin, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -48,6 +49,8 @@ export default function ContactsPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useOpenAddParam(openAdd, !loading)
 
   function openAdd() {
     setEditing(null)
