@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -121,11 +122,6 @@ function buildMatrix(
 }
 
 export default function BudgetPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [categories, setCategories] = useState<BudgetCategory[]>([])
-  const [members, setMembers] = useState<Profile[]>([])
-  const [currentUserId, setCurrentUserId] = useState<string>('')
-  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'categories'>('overview')
   const [showTxnModal, setShowTxnModal] = useState(false)
   const [showCatModal, setShowCatModal] = useState(false)
@@ -136,22 +132,40 @@ export default function BudgetPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7))
 
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
-  async function load() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) setCurrentUserId(user.id)
-    const [txns, cats, profs] = await Promise.all([
-      supabase.from('transactions').select('*, budget_categories(*)').order('date', { ascending: false }),
-      supabase.from('budget_categories').select('*').order('name'),
-      supabase.from('profiles').select('id, household_id, full_name, avatar_url, created_at, updated_at'),
-    ])
-    setTransactions(txns.data ?? [])
-    setCategories(cats.data ?? [])
-    setMembers(profs.data ?? [])
-    setLoading(false)
-  }
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['budget'],
+    queryFn: async (): Promise<{
+      transactions: Transaction[]
+      categories: BudgetCategory[]
+      members: Profile[]
+      currentUserId: string
+    }> => {
+      const [{ data: { user } }, txns, cats, profs] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('transactions').select('*, budget_categories(*)').order('date', { ascending: false }),
+        supabase.from('budget_categories').select('*').order('name'),
+        supabase.from('profiles').select('id, household_id, full_name, avatar_url, created_at, updated_at'),
+      ])
+      if (txns.error) throw txns.error
+      if (cats.error) throw cats.error
+      if (profs.error) throw profs.error
+      return {
+        transactions: txns.data ?? [],
+        categories: cats.data ?? [],
+        members: profs.data ?? [],
+        currentUserId: user?.id ?? '',
+      }
+    },
+  })
 
-  useEffect(() => { load() }, [])
+  const transactions = data?.transactions ?? []
+  const categories = data?.categories ?? []
+  const members = data?.members ?? []
+  const currentUserId = data?.currentUserId ?? ''
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['budget'] })
 
   useOpenAddParam(openAddTxn, !loading)
 
@@ -222,13 +236,13 @@ export default function BudgetPage() {
       }
     }
     setShowTxnModal(false)
-    load()
+    refresh()
   }
 
   async function removeTxn(id: string) {
     if (!confirm('Delete this expense?')) return
     await supabase.from('transactions').delete().eq('id', id)
-    load()
+    refresh()
   }
 
   function openAddCat() {
@@ -265,13 +279,13 @@ export default function BudgetPage() {
       if (error) { toast.error(error.message); return }
     }
     setShowCatModal(false)
-    load()
+    refresh()
   }
 
   async function removeCat(id: string) {
     if (!confirm('Delete this category?')) return
     await supabase.from('budget_categories').delete().eq('id', id)
-    load()
+    refresh()
   }
 
   return (

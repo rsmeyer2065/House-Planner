@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -62,11 +63,13 @@ function initials(name: string | null | undefined) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
+type CalendarData = {
+  events: CalendarEvent[]
+  attendees: Record<string, EventAttendee[]>
+  currentUserId: string
+}
+
 export default function CalendarPage() {
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [attendees, setAttendees] = useState<Record<string, EventAttendee[]>>({})
-  const [currentUserId, setCurrentUserId] = useState<string>('')
-  const [loading, setLoading] = useState(true)
   const [today] = useState(new Date())
   const [current, setCurrent] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string>(toLocalDateString(new Date()))
@@ -75,35 +78,41 @@ export default function CalendarPage() {
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
 
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
-  async function load() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) setCurrentUserId(user.id)
-
-    const { data: eventsData } = await supabase
-      .from('events')
-      .select('*')
-      .order('start_time', { ascending: true })
-    setEvents(eventsData ?? [])
-
-    if (eventsData && eventsData.length > 0) {
-      const eventIds = eventsData.map(e => e.id)
-      const { data: attendeesData } = await supabase
-        .from('event_attendees')
-        .select('*, profiles!user_id(full_name, avatar_url)')
-        .in('event_id', eventIds)
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['calendar'],
+    queryFn: async (): Promise<CalendarData> => {
+      const [{ data: { user } }, eventsRes] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('events').select('*').order('start_time', { ascending: true }),
+      ])
+      if (eventsRes.error) throw eventsRes.error
+      const eventsData: CalendarEvent[] = eventsRes.data ?? []
 
       const grouped: Record<string, EventAttendee[]> = {}
-      for (const a of attendeesData ?? []) {
-        if (!grouped[a.event_id]) grouped[a.event_id] = []
-        grouped[a.event_id].push(a as EventAttendee)
-      }
-      setAttendees(grouped)
-    }
-    setLoading(false)
-  }
+      if (eventsData.length > 0) {
+        const eventIds = eventsData.map(e => e.id)
+        const { data: attendeesData, error } = await supabase
+          .from('event_attendees')
+          .select('*, profiles!user_id(full_name, avatar_url)')
+          .in('event_id', eventIds)
+        if (error) throw error
 
-  useEffect(() => { load() }, [])
+        for (const a of attendeesData ?? []) {
+          if (!grouped[a.event_id]) grouped[a.event_id] = []
+          grouped[a.event_id].push(a as EventAttendee)
+        }
+      }
+      return { events: eventsData, attendees: grouped, currentUserId: user?.id ?? '' }
+    },
+  })
+
+  const events = data?.events ?? []
+  const attendees = data?.attendees ?? {}
+  const currentUserId = data?.currentUserId ?? ''
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['calendar'] })
 
   useOpenAddParam(openAdd, !loading)
 
@@ -190,13 +199,13 @@ export default function CalendarPage() {
       }
     }
     setShowModal(false)
-    load()
+    refresh()
   }
 
   async function remove(id: string) {
     if (!confirm('Delete this event?')) return
     await supabase.from('events').delete().eq('id', id)
-    load()
+    refresh()
   }
 
   async function setRsvp(eventId: string, status: 'attending' | 'declined' | 'maybe') {
@@ -210,21 +219,25 @@ export default function CalendarPage() {
     )
     if (error) { toast.error(error.message); return }
 
-    setAttendees(prev => {
-      const current = prev[eventId] ?? []
+    queryClient.setQueryData<CalendarData>(['calendar'], prev => {
+      if (!prev) return prev
+      const current = prev.attendees[eventId] ?? []
       const existing = current.find(a => a.user_id === currentUserId)
+      let next: EventAttendee[]
       if (existing) {
-        return { ...prev, [eventId]: current.map(a => a.user_id === currentUserId ? { ...a, status } : a) }
+        next = current.map(a => a.user_id === currentUserId ? { ...a, status } : a)
+      } else {
+        const newEntry: EventAttendee = {
+          id: crypto.randomUUID(),
+          event_id: eventId,
+          user_id: currentUserId,
+          household_id,
+          status,
+          created_at: new Date().toISOString(),
+        }
+        next = [...current, newEntry]
       }
-      const newEntry: EventAttendee = {
-        id: crypto.randomUUID(),
-        event_id: eventId,
-        user_id: currentUserId,
-        household_id,
-        status,
-        created_at: new Date().toISOString(),
-      }
-      return { ...prev, [eventId]: [...current, newEntry] }
+      return { ...prev, attendees: { ...prev.attendees, [eventId]: next } }
     })
   }
 

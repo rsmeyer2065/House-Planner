@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -55,9 +56,6 @@ function wateringStatus(plant: Plant): WateringStatus {
 }
 
 export default function PlantsPage() {
-  const [plants, setPlants] = useState<Plant[]>([])
-  const [latestPhotoByPlant, setLatestPhotoByPlant] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [roomFilter, setRoomFilter] = useState('all')
   const [needsWaterOnly, setNeedsWaterOnly] = useState(false)
@@ -73,22 +71,29 @@ export default function PlantsPage() {
   const [uploading, setUploading] = useState(false)
 
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
-  async function load() {
-    const [plantsRes, photosRes] = await Promise.all([
-      supabase.from('plants').select('*').order('name'),
-      supabase.from('plant_photos').select('plant_id, photo_url, taken_at').order('taken_at', { ascending: false }),
-    ])
-    setPlants(plantsRes.data ?? [])
-    const latest: Record<string, string> = {}
-    for (const p of photosRes.data ?? []) {
-      if (!latest[p.plant_id]) latest[p.plant_id] = p.photo_url
-    }
-    setLatestPhotoByPlant(latest)
-    setLoading(false)
-  }
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['plants'],
+    queryFn: async (): Promise<{ plants: Plant[]; latestPhotoByPlant: Record<string, string> }> => {
+      const [plantsRes, photosRes] = await Promise.all([
+        supabase.from('plants').select('*').order('name'),
+        supabase.from('plant_photos').select('plant_id, photo_url, taken_at').order('taken_at', { ascending: false }),
+      ])
+      if (plantsRes.error) throw plantsRes.error
+      if (photosRes.error) throw photosRes.error
+      const latest: Record<string, string> = {}
+      for (const p of photosRes.data ?? []) {
+        if (!latest[p.plant_id]) latest[p.plant_id] = p.photo_url
+      }
+      return { plants: plantsRes.data ?? [], latestPhotoByPlant: latest }
+    },
+  })
 
-  useEffect(() => { load() }, [])
+  const plants = data?.plants ?? []
+  const latestPhotoByPlant = data?.latestPhotoByPlant ?? {}
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['plants'] })
 
   useOpenAddParam(openAdd, !loading)
 
@@ -137,7 +142,7 @@ export default function PlantsPage() {
       if (error) { toast.error(error.message); return }
     }
     setShowModal(false)
-    load()
+    refresh()
   }
 
   async function remove(plant: Plant) {
@@ -147,7 +152,7 @@ export default function PlantsPage() {
       await supabase.storage.from('plant-photos').remove(rows.map(r => r.storage_path))
     }
     await supabase.from('plants').delete().eq('id', plant.id)
-    load()
+    refresh()
   }
 
   async function waterNow(plant: Plant) {
@@ -156,7 +161,7 @@ export default function PlantsPage() {
       .update({ last_watered_at: new Date().toISOString().slice(0, 10) })
       .eq('id', plant.id)
     if (error) { toast.error(error.message); return }
-    load()
+    refresh()
   }
 
   async function openPhotos(plant: Plant) {
@@ -189,7 +194,7 @@ export default function PlantsPage() {
     setUploadCaption('')
     setUploadTakenAt('')
     await openPhotos(photosPlant)
-    load()
+    refresh()
     setUploading(false)
   }
 
@@ -198,7 +203,7 @@ export default function PlantsPage() {
     await supabase.storage.from('plant-photos').remove([photo.storage_path])
     await supabase.from('plant_photos').delete().eq('id', photo.id)
     if (photosPlant) await openPhotos(photosPlant)
-    load()
+    refresh()
   }
 
   const usedRooms = ['all', ...Array.from(new Set(plants.map(p => p.room).filter((r): r is string => !!r)))]

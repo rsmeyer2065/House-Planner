@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getHouseholdId } from '@/lib/household'
 import { useOpenAddParam } from '@/lib/use-open-add-param'
@@ -21,25 +22,27 @@ type FormData = {
 const EMPTY_FORM: FormData = { title: '', content: '', color: 'yellow' }
 
 export default function NotesPage() {
-  const [notes, setNotes] = useState<Note[]>([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Note | null>(null)
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
 
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
-  async function load() {
-    const { data } = await supabase
-      .from('notes')
-      .select('*')
-      .order('pinned', { ascending: false })
-      .order('updated_at', { ascending: false })
-    setNotes(data ?? [])
-    setLoading(false)
-  }
+  const { data: notes = [], isPending: loading } = useQuery({
+    queryKey: ['notes'],
+    queryFn: async (): Promise<Note[]> => {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .order('pinned', { ascending: false })
+        .order('updated_at', { ascending: false })
+      if (error) throw error
+      return data ?? []
+    },
+  })
 
-  useEffect(() => { load() }, [])
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['notes'] })
 
   useOpenAddParam(openAdd, !loading)
 
@@ -85,18 +88,18 @@ export default function NotesPage() {
       }
     }
     setShowModal(false)
-    load()
+    refresh()
   }
 
   async function togglePin(note: Note) {
     await supabase.from('notes').update({ pinned: !note.pinned }).eq('id', note.id)
-    load()
+    refresh()
   }
 
   async function remove(id: string) {
     if (!confirm('Delete this note?')) return
     await supabase.from('notes').delete().eq('id', id)
-    load()
+    refresh()
   }
 
   const pinned = notes.filter(n => n.pinned)
