@@ -58,6 +58,13 @@ export default function SignupPage() {
         return
       }
 
+      // Record membership before pointing the active-household at it -- the
+      // DB trigger only lets profiles.household_id reference a household the
+      // user is already a member of.
+      await supabase
+        .from('household_members')
+        .insert({ household_id: household.id, user_id: userId })
+
       await supabase
         .from('profiles')
         .update({ household_id: household.id, full_name: fullName })
@@ -74,6 +81,10 @@ export default function SignupPage() {
         setLoading(false)
         return
       }
+
+      await supabase
+        .from('household_members')
+        .insert({ household_id: household.id, user_id: userId })
 
       await supabase
         .from('profiles')
