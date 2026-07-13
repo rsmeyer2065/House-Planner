@@ -14,6 +14,27 @@ export type Household = {
   created_at: string
 }
 
+export type HouseholdMember = {
+  household_id: string
+  user_id: string
+  role: string
+  created_at: string
+  profiles?: Pick<Profile, 'full_name' | 'avatar_url'> | null
+  households?: Pick<Household, 'name' | 'invite_code'> | null
+}
+
+export type InvitationStatus = 'pending' | 'accepted' | 'declined'
+
+export type HouseholdInvitation = {
+  id: string
+  household_id: string
+  email: string
+  invited_by: string | null
+  status: InvitationStatus
+  created_at: string
+  households?: Pick<Household, 'name'> | null
+}
+
 export type Priority = 'low' | 'medium' | 'high'
 export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
 export type ProjectStatus = 'planned' | 'in_progress' | 'completed' | 'on_hold'
