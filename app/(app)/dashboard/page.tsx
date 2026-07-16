@@ -7,10 +7,12 @@ import type { Task, ActivityLogEntry, Plant } from '@/lib/types'
 import {
   Hammer, CheckSquare2, CalendarDays, Wallet,
   ShoppingCart, Phone, Package, StickyNote, Sprout,
-  Activity, Clock, Plus, CircleAlert, Square, Droplet,
+  Activity, Clock, Plus, CircleAlert, Square, Droplet, Hourglass,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow, isToday, isTomorrow, isThisWeek, format } from 'date-fns'
+import { getMemberAccess } from '@/lib/household'
+import { sectionForPath, canAccessSection, PERMANENT_ACCESS, type MemberAccess } from '@/lib/sections'
 
 type Stats = {
   projects: number
@@ -109,7 +111,20 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [sideLoading, setSideLoading] = useState(true)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [access, setAccess] = useState<MemberAccess>(PERMANENT_ACCESS)
   const quickAddRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    async function loadAccess() {
+      setAccess(await getMemberAccess(createClient()))
+    }
+    loadAccess()
+  }, [])
+
+  const canSee = (href: string) => {
+    const section = sectionForPath(href)
+    return !section || canAccessSection(access, section)
+  }
 
   useEffect(() => {
     if (!quickAddOpen) return
@@ -221,6 +236,14 @@ export default function DashboardPage() {
     { href: '/plants', label: 'Plants', value: stats.plants, icon: Sprout, color: '#7c9a6e' },
   ]
 
+  const visibleCards = cards.filter(c => canSee(c.href))
+  const visibleQuickAdd = QUICK_ADD_ITEMS.filter(i => canSee(i.href))
+  const tempActive = access.memberType === 'temporary' && !access.isExpired
+  const tempExpired = access.memberType === 'temporary' && access.isExpired
+  const expiryText = access.accessExpiresAt
+    ? format(new Date(access.accessExpiresAt), "MMM d, yyyy · h:mm a")
+    : null
+
   return (
     <div className="flex flex-col gap-[26px]">
       {/* header */}
@@ -232,6 +255,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3.5">
+          {visibleQuickAdd.length > 0 && (
           <div ref={quickAddRef} className="relative">
             <button
               onClick={() => setQuickAddOpen(o => !o)}
@@ -255,7 +279,7 @@ export default function DashboardPage() {
                   RAISED_CARD
                 )}
               >
-                {QUICK_ADD_ITEMS.map(({ label, href, icon: Icon, color }) => (
+                {visibleQuickAdd.map(({ label, href, icon: Icon, color }) => (
                   <Link
                     key={href}
                     role="menuitem"
@@ -270,14 +294,44 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+          )}
           <div className={cn('w-[52px] h-[52px] rounded-full bg-[#e6d6ca] flex items-center justify-center font-black text-[16px] text-[#c1673f]', RAISED_SM)}>
             {initials(firstName)}
           </div>
         </div>
       </header>
 
+      {/* Temporary-access banner */}
+      {tempActive && (
+        <div className={cn('flex items-center gap-3 rounded-[22px] bg-[#e6d6ca] px-5 py-4', RAISED_SM)}>
+          <span className={cn('w-[38px] h-[38px] flex-none rounded-xl flex items-center justify-center bg-[#e6d6ca] text-[#c1673f]', INSET_SM)}>
+            <Hourglass className="h-[18px] w-[18px]" strokeWidth={2.25} />
+          </span>
+          <div>
+            <p className="m-0 text-[14.5px] font-extrabold text-[#4b3a2f]">You have temporary access to this household.</p>
+            <p className="mt-0.5 text-[13px] font-semibold text-[#a58b78]">
+              {expiryText ? `Access ends ${expiryText}.` : 'No end date set.'} You can only see the sections you were given.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Expired temporary access */}
+      {tempExpired && (
+        <div className={cn('flex flex-col items-center text-center gap-3 rounded-[26px] bg-[#e6d6ca] px-6 py-12', RAISED_CARD)}>
+          <span className={cn('w-[56px] h-[56px] rounded-2xl flex items-center justify-center bg-[#e6d6ca] text-[#c1673f]', INSET_SM)}>
+            <Hourglass className="h-6 w-6" strokeWidth={2.25} />
+          </span>
+          <p className="m-0 text-[20px] font-black text-[#4b3a2f]">Your temporary access has ended</p>
+          <p className="m-0 max-w-sm text-[14px] font-semibold text-[#a58b78]">
+            {expiryText ? `Access ended ${expiryText}. ` : ''}
+            Ask a household member to renew your access if you still need it.
+          </p>
+        </div>
+      )}
+
       {/* stat cards */}
-      {loading ? (
+      {!tempExpired && (loading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-[22px]">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-[150px] rounded-[26px] bg-[#dcc8ba] animate-pulse" />
@@ -285,7 +339,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <section className="grid grid-cols-2 md:grid-cols-4 gap-[22px]">
-          {cards.map(({ href, label, value, icon: Icon, color }) => (
+          {visibleCards.map(({ href, label, value, icon: Icon, color }) => (
             <Link
               key={href}
               href={href}
@@ -304,11 +358,13 @@ export default function DashboardPage() {
             </Link>
           ))}
         </section>
-      )}
+      ))}
 
       {/* lower panels */}
+      {!tempExpired && (
       <section className="grid md:grid-cols-2 lg:grid-cols-3 gap-[22px]">
         {/* My Tasks */}
+        {canSee('/tasks') && (
         <div className={cn('rounded-[28px] bg-[#e6d6ca] p-6 pb-3', RAISED_CARD)}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="m-0 flex items-center gap-2.5 text-[18px] font-black text-[#4b3a2f]">
@@ -354,8 +410,10 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Plants Needing Water */}
+        {canSee('/plants') && (
         <div className={cn('rounded-[28px] bg-[#e6d6ca] p-6 pb-3', RAISED_CARD)}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="m-0 flex items-center gap-2.5 text-[18px] font-black text-[#4b3a2f]">
@@ -407,6 +465,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Recent Activity */}
         <div className={cn('rounded-[28px] bg-[#e6d6ca] p-6', RAISED_CARD)}>
@@ -453,6 +512,7 @@ export default function DashboardPage() {
           )}
         </div>
       </section>
+      )}
     </div>
   )
 }

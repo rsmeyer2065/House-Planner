@@ -20,6 +20,8 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { getMemberAccess } from '@/lib/household'
+import { sectionForPath, canAccessSection, PERMANENT_ACCESS, type MemberAccess } from '@/lib/sections'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -42,6 +44,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [householdName, setHouseholdName] = useState('')
+  const [access, setAccess] = useState<MemberAccess>(PERMANENT_ACCESS)
 
   useEffect(() => {
     async function loadHousehold() {
@@ -52,9 +55,15 @@ export function Sidebar() {
       if (!prof?.household_id) return
       const { data: hh } = await supabase.from('households').select('name').eq('id', prof.household_id).single()
       if (hh?.name) setHouseholdName(hh.name)
+      setAccess(await getMemberAccess(supabase))
     }
     loadHousehold()
   }, [])
+
+  const visibleNav = navItems.filter((item) => {
+    const section = sectionForPath(item.href)
+    return !section || canAccessSection(access, section)
+  })
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -75,7 +84,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-col gap-[7px]">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {visibleNav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
             <Link
