@@ -3,15 +3,39 @@
 import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import type { Profile, Household, HouseholdInvitation } from '@/lib/types'
-import { Copy, Check, LogOut, Users, Mail, X, Plus, LogIn, ArrowLeftRight, DoorOpen } from 'lucide-react'
+import type { Profile, Household, HouseholdInvitation, HouseholdSection, MemberType } from '@/lib/types'
+import { Copy, Check, LogOut, Users, Mail, X, Plus, LogIn, ArrowLeftRight, DoorOpen, Hourglass, Pencil } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { CARD, INPUT, LABEL, BTN_PRIMARY, BTN_GHOST, BTN_DANGER_GHOST, RAISED_SM, INSET_SM } from '@/lib/neu'
+import { TEMP_GRANTABLE_SECTIONS, SECTION_LABELS } from '@/lib/sections'
 
 function initials(name: string | null | undefined) {
   if (!name) return '?'
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
+
+// A <input type="datetime-local"> value -> ISO string (or null when empty).
+function localToIso(v: string): string | null {
+  if (!v) return null
+  const d = new Date(v)
+  return isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+// ISO string -> a value a <input type="datetime-local"> accepts (local time).
+function isoToLocal(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function formatDateTime(iso: string | null): string {
+  if (!iso) return 'no end date'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return 'no end date'
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 // A household the current user belongs to, shaped from the household_members join.
@@ -25,6 +49,10 @@ type Membership = {
 type Member = {
   user_id: string
   role: string
+  member_type: MemberType
+  allowed_sections: HouseholdSection[] | null
+  access_starts_at: string | null
+  access_expires_at: string | null
   profiles: Pick<Profile, 'full_name' | 'avatar_url'> | null
 }
 
@@ -46,6 +74,14 @@ export default function SettingsPage() {
   const [joinError, setJoinError] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteMsg, setInviteMsg] = useState('')
+  const [inviteTemp, setInviteTemp] = useState(false)
+  const [inviteSections, setInviteSections] = useState<HouseholdSection[]>([])
+  const [inviteStart, setInviteStart] = useState('')
+  const [inviteEnd, setInviteEnd] = useState('')
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
+  const [editSections, setEditSections] = useState<HouseholdSection[]>([])
+  const [editStart, setEditStart] = useState('')
+  const [editEnd, setEditEnd] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
   const householdNameRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -81,7 +117,7 @@ export default function SettingsPage() {
 
         const { data: mbrs } = await supabase
           .from('household_members')
-          .select('user_id, role, profiles(full_name, avatar_url)')
+          .select('user_id, role, member_type, allowed_sections, access_starts_at, access_expires_at, profiles(full_name, avatar_url)')
           .eq('household_id', activeId)
         members = (mbrs as unknown as Member[]) ?? []
 
@@ -118,6 +154,15 @@ export default function SettingsPage() {
   const outgoingInvites = data?.outgoingInvites ?? []
   const incomingInvites = data?.incomingInvites ?? []
   const inviteCode = household?.invite_code ?? ''
+
+  // The current user's membership in the active household drives whether they
+  // see the full management UI (permanent) or the trimmed self-view (temporary).
+  const myMember = members.find(m => m.user_id === profile?.id) ?? null
+  const isTempMember = myMember?.member_type === 'temporary'
+
+  function toggleFrom(list: HouseholdSection[], s: HouseholdSection): HouseholdSection[] {
+    return list.includes(s) ? list.filter(x => x !== s) : [...list, s]
+  }
 
   async function saveProfile() {
     if (!profile) return
@@ -158,19 +203,13 @@ export default function SettingsPage() {
   async function joinHousehold() {
     setJoinError('')
     if (!profile) return
-    const { data: hh } = await supabase
-      .from('households')
-      .select('*')
-      .eq('invite_code', joinCode.trim().toUpperCase())
-      .single()
-    if (!hh) {
+    // A definer RPC validates the code and creates the (permanent) membership;
+    // direct self-insert into an existing household is no longer permitted.
+    const { error } = await supabase.rpc('join_household_by_code', { p_code: joinCode })
+    if (error) {
       setJoinError('Invalid invite code.')
       return
     }
-    if (!memberships.some(m => m.household_id === hh.id)) {
-      await supabase.from('household_members').insert({ household_id: hh.id, user_id: profile.id })
-    }
-    await supabase.from('profiles').update({ household_id: hh.id }).eq('id', profile.id)
     setJoinCode('')
     reload()
     router.refresh()
@@ -205,16 +244,35 @@ export default function SettingsPage() {
     if (!household || !profile) return
     const email = inviteEmail.trim().toLowerCase()
     if (!email) return
-    const { error } = await supabase.from('household_invitations').insert({
-      household_id: household.id,
-      email,
-      invited_by: profile.id,
-    })
+    if (inviteTemp && inviteSections.length === 0) {
+      setInviteMsg('Choose at least one section for temporary access.')
+      return
+    }
+    const payload: {
+      household_id: string
+      email: string
+      invited_by: string
+      member_type?: MemberType
+      allowed_sections?: HouseholdSection[]
+      access_starts_at?: string | null
+      access_expires_at?: string | null
+    } = { household_id: household.id, email, invited_by: profile.id }
+    if (inviteTemp) {
+      payload.member_type = 'temporary'
+      payload.allowed_sections = inviteSections
+      payload.access_starts_at = localToIso(inviteStart)
+      payload.access_expires_at = localToIso(inviteEnd)
+    }
+    const { error } = await supabase.from('household_invitations').insert(payload)
     if (error) {
       setInviteMsg(error.message)
       return
     }
     setInviteEmail('')
+    setInviteTemp(false)
+    setInviteSections([])
+    setInviteStart('')
+    setInviteEnd('')
     setInviteMsg(`Invitation sent to ${email}.`)
     reload()
   }
@@ -226,13 +284,46 @@ export default function SettingsPage() {
 
   async function acceptInvite(inv: HouseholdInvitation) {
     if (!profile) return
-    if (!memberships.some(m => m.household_id === inv.household_id)) {
-      await supabase.from('household_members').insert({ household_id: inv.household_id, user_id: profile.id })
+    // A security-definer RPC creates the membership from the invitation's own
+    // grant, so a temporary invitee can't forge permanent/all-sections access.
+    const { error } = await supabase.rpc('accept_invitation', { p_invite_id: inv.id })
+    if (error) {
+      setInviteMsg(error.message)
+      return
     }
-    await supabase.from('household_invitations').update({ status: 'accepted' }).eq('id', inv.id)
-    await supabase.from('profiles').update({ household_id: inv.household_id }).eq('id', profile.id)
     reload()
     router.refresh()
+  }
+
+  function startEditMember(m: Member) {
+    setEditingUserId(m.user_id)
+    setEditSections(m.allowed_sections ?? [])
+    setEditStart(isoToLocal(m.access_starts_at))
+    setEditEnd(isoToLocal(m.access_expires_at))
+  }
+
+  async function saveTemporaryAccess(userId: string) {
+    if (!household) return
+    if (editSections.length === 0) return
+    setSaving(true)
+    await supabase.rpc('set_temporary_access', {
+      p_household_id: household.id,
+      p_user_id: userId,
+      p_allowed_sections: editSections,
+      p_starts_at: localToIso(editStart),
+      p_expires_at: localToIso(editEnd),
+    })
+    setSaving(false)
+    setEditingUserId(null)
+    reload()
+  }
+
+  async function removeMember(m: Member) {
+    if (!household) return
+    const name = m.profiles?.full_name || 'this member'
+    if (!confirm(`Remove ${name}'s temporary access to "${household.name}"?`)) return
+    await supabase.rpc('remove_member', { p_household_id: household.id, p_user_id: m.user_id })
+    reload()
   }
 
   async function declineInvite(inv: HouseholdInvitation) {
@@ -301,20 +392,69 @@ export default function SettingsPage() {
           <p className="text-xs font-semibold text-[#a58b78] mb-4">You&apos;ve been invited to join these households.</p>
           <div className="space-y-3">
             {incomingInvites.map(inv => (
-              <div key={inv.id} className={cn('flex items-center gap-3 rounded-2xl px-4 py-3 bg-[#e6d6ca]', RAISED_SM)}>
-                <span className="flex-1 font-extrabold text-sm text-[#4b3a2f]">
-                  {inv.households?.name ?? 'A household'}
-                </span>
-                <button onClick={() => acceptInvite(inv)} className={cn(BTN_PRIMARY, 'px-4 py-2')}>Accept</button>
-                <button onClick={() => declineInvite(inv)} className={cn(BTN_GHOST, 'px-4 py-2')}>Decline</button>
+              <div key={inv.id} className={cn('rounded-2xl px-4 py-3 bg-[#e6d6ca]', RAISED_SM)}>
+                <div className="flex items-center gap-3">
+                  <span className="flex-1 font-extrabold text-sm text-[#4b3a2f]">
+                    {inv.households?.name ?? 'A household'}
+                  </span>
+                  <button onClick={() => acceptInvite(inv)} className={cn(BTN_PRIMARY, 'px-4 py-2')}>Accept</button>
+                  <button onClick={() => declineInvite(inv)} className={cn(BTN_GHOST, 'px-4 py-2')}>Decline</button>
+                </div>
+                {inv.member_type === 'temporary' && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-[#c1673f] bg-[#efd9cf] px-2 py-0.5 rounded-full">
+                      <Hourglass className="h-3 w-3" /> Temporary
+                    </span>
+                    {(inv.allowed_sections ?? []).map(s => (
+                      <span key={s} className="text-[11px] font-bold text-[#7a6142] bg-[#e7ddce] px-2 py-0.5 rounded-full">
+                        {SECTION_LABELS[s]}
+                      </span>
+                    ))}
+                    <span className="text-[11px] font-semibold text-[#a58b78] w-full">
+                      Access until {formatDateTime(inv.access_expires_at)}.
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Active household: name, members, invite code, invite-by-email */}
-      {household && (
+      {/* Temporary member self-view: a read-only summary of their access. */}
+      {household && isTempMember && (
+        <div className={cn('p-5', CARD)}>
+          <h2 className="font-extrabold text-[#4b3a2f] mb-1 flex items-center gap-2">
+            <Hourglass className="h-4 w-4 text-[#c1673f]" /> Your Access
+          </h2>
+          <p className="text-xs font-semibold text-[#a58b78] mb-4">
+            You&apos;re a temporary member of {household.name}.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className={LABEL}>Sections you can use</label>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="text-[11px] font-bold text-[#7a6142] bg-[#e7ddce] px-2.5 py-1 rounded-full">Dashboard</span>
+                {(myMember?.allowed_sections ?? []).map(s => (
+                  <span key={s} className="text-[11px] font-bold text-[#7a6142] bg-[#e7ddce] px-2.5 py-1 rounded-full">
+                    {SECTION_LABELS[s]}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-[rgba(150,120,95,0.18)] pt-3">
+              <label className={LABEL}>Access period</label>
+              <p className="text-sm font-semibold text-[#8a7462]">
+                {myMember?.access_starts_at ? `From ${formatDateTime(myMember.access_starts_at)} · ` : ''}
+                Until {formatDateTime(myMember?.access_expires_at ?? null)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active household management (permanent members only). */}
+      {household && !isTempMember && (
         <div className={cn('p-5', CARD)}>
           <h2 className="font-extrabold text-[#4b3a2f] mb-4">Current Household</h2>
           <div className="space-y-4">
@@ -339,21 +479,93 @@ export default function SettingsPage() {
                 <Users className="h-3.5 w-3.5" /> Members ({members.length})
               </label>
               <div className="space-y-2 mt-1">
-                {members.map(m => (
-                  <div key={m.user_id} className="flex items-center gap-3">
-                    <div className={cn('w-[38px] h-[38px] flex-none rounded-full bg-[#e6d6ca] flex items-center justify-center text-[13px] font-black text-[#c1673f]', RAISED_SM)}>
-                      {initials(m.profiles?.full_name)}
+                {members.map(m => {
+                  const isTemp = m.member_type === 'temporary'
+                  const editing = editingUserId === m.user_id
+                  return (
+                    <div key={m.user_id} className={cn('rounded-2xl', isTemp && cn('px-3 py-2.5 bg-[#e6d6ca]', RAISED_SM))}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn('w-[38px] h-[38px] flex-none rounded-full bg-[#e6d6ca] flex items-center justify-center text-[13px] font-black text-[#c1673f]', RAISED_SM)}>
+                          {initials(m.profiles?.full_name)}
+                        </div>
+                        <span className="font-bold text-sm text-[#4b3a2f]">
+                          {m.profiles?.full_name || 'Unnamed member'}
+                        </span>
+                        {m.user_id === profile?.id && (
+                          <span className={cn('text-[10px] font-extrabold uppercase tracking-wide text-[#c1673f] bg-[#e6d6ca] px-2 py-0.5 rounded-full', INSET_SM)}>
+                            You
+                          </span>
+                        )}
+                        {isTemp && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-[#c1673f] bg-[#efd9cf] px-2 py-0.5 rounded-full">
+                            <Hourglass className="h-3 w-3" /> Temporary
+                          </span>
+                        )}
+                        {isTemp && (
+                          <div className="ml-auto flex items-center gap-1">
+                            <button onClick={() => (editing ? setEditingUserId(null) : startEditMember(m))} className="text-[#8a7462] hover:text-[#5a4638]" aria-label="Edit access">
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => removeMember(m)} className="text-[#b5574a] hover:text-[#9a4a3f]" aria-label="Remove member">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {isTemp && !editing && (
+                        <div className="mt-1.5 ml-[50px] flex flex-wrap items-center gap-1.5">
+                          {(m.allowed_sections ?? []).map(s => (
+                            <span key={s} className="text-[11px] font-bold text-[#7a6142] bg-[#e7ddce] px-2 py-0.5 rounded-full">
+                              {SECTION_LABELS[s]}
+                            </span>
+                          ))}
+                          <span className="text-[11px] font-semibold text-[#a58b78] w-full">
+                            Access until {formatDateTime(m.access_expires_at)}.
+                          </span>
+                        </div>
+                      )}
+
+                      {isTemp && editing && (
+                        <div className="mt-2.5 ml-[50px] space-y-2.5">
+                          <div>
+                            <label className={LABEL}>Sections</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {TEMP_GRANTABLE_SECTIONS.map(s => {
+                                const on = editSections.includes(s)
+                                return (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => setEditSections(toggleFrom(editSections, s))}
+                                    className={cn('text-[12px] font-bold px-3 py-1.5 rounded-full',
+                                      on ? 'text-[#c1673f] bg-[#efd9cf]' : cn('text-[#8a7462] bg-[#e6d6ca]', INSET_SM))}
+                                  >
+                                    {SECTION_LABELS[s]}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <div className="flex-1 min-w-[140px]">
+                              <label className={LABEL}>Starts (optional)</label>
+                              <input type="datetime-local" className={INPUT} value={editStart} onChange={e => setEditStart(e.target.value)} />
+                            </div>
+                            <div className="flex-1 min-w-[140px]">
+                              <label className={LABEL}>Ends</label>
+                              <input type="datetime-local" className={INPUT} value={editEnd} onChange={e => setEditEnd(e.target.value)} />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => saveTemporaryAccess(m.user_id)} disabled={saving || editSections.length === 0} className={cn(BTN_PRIMARY, 'px-4 py-2')}>Save</button>
+                            <button onClick={() => setEditingUserId(null)} className={cn(BTN_GHOST, 'px-4 py-2')}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <span className="font-bold text-sm text-[#4b3a2f]">
-                      {m.profiles?.full_name || 'Unnamed member'}
-                    </span>
-                    {m.user_id === profile?.id && (
-                      <span className={cn('text-[10px] font-extrabold uppercase tracking-wide text-[#c1673f] bg-[#e6d6ca] px-2 py-0.5 rounded-full', INSET_SM)}>
-                        You
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
@@ -390,12 +602,62 @@ export default function SettingsPage() {
                   Send
                 </button>
               </div>
+
+              {/* Temporary access options */}
+              <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
+                <input type="checkbox" checked={inviteTemp} onChange={e => setInviteTemp(e.target.checked)} className="accent-[#c1673f] h-4 w-4" />
+                <span className="text-sm font-bold text-[#4b3a2f] flex items-center gap-1.5">
+                  <Hourglass className="h-3.5 w-3.5 text-[#c1673f]" /> Temporary access (housesitter / petsitter)
+                </span>
+              </label>
+              {inviteTemp && (
+                <div className={cn('mt-2.5 p-3 rounded-2xl bg-[#e6d6ca] space-y-2.5', INSET_SM)}>
+                  <p className="text-xs font-semibold text-[#a58b78]">
+                    They&apos;ll get the dashboard plus the sections you pick, until the end date.
+                  </p>
+                  <div>
+                    <label className={LABEL}>Sections</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {TEMP_GRANTABLE_SECTIONS.map(s => {
+                        const on = inviteSections.includes(s)
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setInviteSections(toggleFrom(inviteSections, s))}
+                            className={cn('text-[12px] font-bold px-3 py-1.5 rounded-full',
+                              on ? 'text-[#c1673f] bg-[#efd9cf]' : cn('text-[#8a7462] bg-[#e6d6ca]', RAISED_SM))}
+                          >
+                            {SECTION_LABELS[s]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <div className="flex-1 min-w-[140px]">
+                      <label className={LABEL}>Starts (optional)</label>
+                      <input type="datetime-local" className={INPUT} value={inviteStart} onChange={e => setInviteStart(e.target.value)} />
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                      <label className={LABEL}>Ends</label>
+                      <input type="datetime-local" className={INPUT} value={inviteEnd} onChange={e => setInviteEnd(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {inviteMsg && <p className="text-sm font-semibold text-[#7c9a6e] mt-1">{inviteMsg}</p>}
               {outgoingInvites.length > 0 && (
                 <div className="mt-3 space-y-1.5">
                   {outgoingInvites.map(inv => (
                     <div key={inv.id} className="flex items-center gap-2 text-sm">
                       <span className="flex-1 font-semibold text-[#8a7462] truncate">{inv.email}</span>
+                      {inv.member_type === 'temporary' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-[#c1673f] bg-[#efd9cf] px-2 py-0.5 rounded-full">
+                          <Hourglass className="h-3 w-3" /> Temp
+                        </span>
+                      )}
                       <span className="text-[11px] font-bold uppercase tracking-wide text-[#a58b78]">Pending</span>
                       <button onClick={() => revokeInvite(inv.id)} className="text-[#b5574a] hover:text-[#9a4a3f]" aria-label="Revoke invitation">
                         <X className="h-4 w-4" />
@@ -439,6 +701,8 @@ export default function SettingsPage() {
         )}
 
         {/* Create a new household */}
+        {!isTempMember && (
+        <>
         <div className="border-t border-[rgba(150,120,95,0.18)] pt-3.5">
           <h3 className="text-sm font-extrabold text-[#4b3a2f] mb-2 flex items-center gap-1.5">
             <Plus className="h-3.5 w-3.5" /> Create a Household
@@ -475,6 +739,8 @@ export default function SettingsPage() {
           </div>
           {joinError && <p className="text-sm font-semibold text-[#b5574a] mt-1">{joinError}</p>}
         </div>
+        </>
+        )}
       </div>
 
       {/* Sign out */}

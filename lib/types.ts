@@ -14,10 +14,30 @@ export type Household = {
   created_at: string
 }
 
+export type MemberType = 'permanent' | 'temporary'
+
+// Every section of the app. The first six may be granted to a temporary
+// member (dashboard is always implicitly granted); the rest are permanent-only.
+export type HouseholdSection =
+  | 'dashboard'
+  | 'tasks'
+  | 'plants'
+  | 'notes'
+  | 'contacts'
+  | 'inventory'
+  | 'projects'
+  | 'calendar'
+  | 'budget'
+  | 'shopping'
+
 export type HouseholdMember = {
   household_id: string
   user_id: string
   role: string
+  member_type: MemberType
+  allowed_sections: HouseholdSection[] | null
+  access_starts_at: string | null
+  access_expires_at: string | null
   created_at: string
   profiles?: Pick<Profile, 'full_name' | 'avatar_url'> | null
   households?: Pick<Household, 'name' | 'invite_code'> | null
@@ -31,6 +51,10 @@ export type HouseholdInvitation = {
   email: string
   invited_by: string | null
   status: InvitationStatus
+  member_type: MemberType
+  allowed_sections: HouseholdSection[] | null
+  access_starts_at: string | null
+  access_expires_at: string | null
   created_at: string
   households?: Pick<Household, 'name'> | null
 }

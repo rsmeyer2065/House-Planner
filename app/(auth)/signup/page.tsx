@@ -70,25 +70,22 @@ export default function SignupPage() {
         .update({ household_id: household.id, full_name: fullName })
         .eq('id', userId)
     } else {
-      const { data: household, error: hError } = await supabase
-        .from('households')
-        .select()
-        .eq('invite_code', inviteCode.trim().toUpperCase())
-        .single()
+      // A definer RPC validates the code and creates the (permanent)
+      // membership + sets the active household; direct self-insert into an
+      // existing household is no longer permitted.
+      const { error: joinError } = await supabase.rpc('join_household_by_code', {
+        p_code: inviteCode,
+      })
 
-      if (hError || !household) {
+      if (joinError) {
         toast.error('Invalid invite code — check with your partner')
         setLoading(false)
         return
       }
 
       await supabase
-        .from('household_members')
-        .insert({ household_id: household.id, user_id: userId })
-
-      await supabase
         .from('profiles')
-        .update({ household_id: household.id, full_name: fullName })
+        .update({ full_name: fullName })
         .eq('id', userId)
     }
 
