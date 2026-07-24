@@ -16,12 +16,13 @@ export type Household = {
 
 export type MemberType = 'permanent' | 'temporary'
 
-// Every section of the app. The first six may be granted to a temporary
+// Every section of the app. The first seven may be granted to a temporary
 // member (dashboard is always implicitly granted); the rest are permanent-only.
 export type HouseholdSection =
   | 'dashboard'
   | 'tasks'
   | 'plants'
+  | 'pets'
   | 'notes'
   | 'contacts'
   | 'inventory'
@@ -256,6 +257,68 @@ export type PlantPhoto = {
   storage_path: string
   taken_at: string
   caption: string | null
+  created_at: string
+}
+
+export type PetSpecies =
+  | 'dog'
+  | 'cat'
+  | 'bird'
+  | 'fish'
+  | 'reptile'
+  | 'small_mammal'
+  | 'other'
+
+export type PetSex = 'male' | 'female' | 'unknown'
+
+export type PetFoodType = 'dry' | 'wet' | 'both' | 'raw' | 'prescription' | 'other'
+
+export type Pet = {
+  id: string
+  household_id: string
+  name: string
+  species: PetSpecies
+  breed: string | null
+  sex: PetSex | null
+  birthdate: string | null
+  weight: string | null
+  color_markings: string | null
+  microchip_id: string | null
+  photo_url: string | null
+  photo_storage_path: string | null
+  food_type: PetFoodType | null
+  food_brand: string | null
+  food_amount: string | null
+  feeding_schedule: string | null
+  feeding_notes: string | null
+  allergies: string | null
+  walk_required: boolean
+  walk_schedule: string | null
+  walk_notes: string | null
+  litter_box_location: string | null
+  litter_cleaning_interval_days: number | null
+  litter_notes: string | null
+  vet_name: string | null
+  vet_phone: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  behavior_notes: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type PetMedication = {
+  id: string
+  pet_id: string
+  household_id: string
+  name: string
+  dosage: string | null
+  schedule: string | null
+  instructions: string | null
+  start_date: string | null
+  end_date: string | null
+  notes: string | null
   created_at: string
 }
 

@@ -125,3 +125,25 @@
     @apply font-sans;
   }
 }
+
+/* Printing (used by the per-pet sitter sheet). The app shell is a fixed-height,
+   overflow-hidden flex layout, which would otherwise print only the first
+   screenful — unwind it so the whole page flows onto paper. */
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  .print-shell {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+  .print-shell main {
+    height: auto;
+    overflow: visible;
+    padding: 0;
+  }
+}
