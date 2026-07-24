@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ShoppingCart,
   Sprout,
+  PawPrint,
   StickyNote,
   Settings,
 } from 'lucide-react'
@@ -32,6 +33,7 @@ const primaryNav = [
 const TEMP_NAV_CANDIDATES = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/tasks', label: 'Tasks', icon: CheckSquare2 },
+  { href: '/pets', label: 'Pets', icon: PawPrint },
   { href: '/plants', label: 'Plants', icon: Sprout },
   { href: '/notes', label: 'Notes', icon: StickyNote },
   { href: '/settings', label: 'More', icon: Settings },
@@ -61,7 +63,7 @@ export function MobileNav() {
       : TEMP_NAV_CANDIDATES.filter((item) => allowed(item.href)).slice(0, 5)
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#e6d6ca] shadow-[0_-4px_14px_rgba(150,120,95,0.18)]">
+    <nav className="md:hidden print:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#e6d6ca] shadow-[0_-4px_14px_rgba(150,120,95,0.18)]">
       <div className="flex items-center justify-around h-16 px-2">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')

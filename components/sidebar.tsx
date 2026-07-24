@@ -14,6 +14,7 @@ import {
   Package,
   StickyNote,
   Sprout,
+  PawPrint,
   Settings,
   LogOut,
 } from 'lucide-react'
@@ -34,6 +35,7 @@ const navItems = [
   { href: '/inventory', label: 'Inventory', icon: Package },
   { href: '/notes', label: 'Notes', icon: StickyNote },
   { href: '/plants', label: 'Plants', icon: Sprout },
+  { href: '/pets', label: 'Pets', icon: PawPrint },
 ]
 
 const RAISED = 'shadow-[3px_3px_8px_#ccb5a5,-3px_-3px_8px_#f7ebe1]'
@@ -72,7 +74,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-[250px] shrink-0 bg-[#e6d6ca] p-[26px] px-5 gap-[26px]">
+    <aside className="hidden md:flex print:hidden flex-col w-[250px] shrink-0 bg-[#e6d6ca] p-[26px] px-5 gap-[26px]">
       <div className="flex items-center gap-[13px] px-1.5 py-1">
         <div className={cn('w-[46px] h-[46px] rounded-2xl bg-[#e6d6ca] flex items-center justify-center text-xl', RAISED)}>
           🏡

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import type { Task, ActivityLogEntry, Plant } from '@/lib/types'
 import {
   Hammer, CheckSquare2, CalendarDays, Wallet,
-  ShoppingCart, Phone, Package, StickyNote, Sprout,
+  ShoppingCart, Phone, Package, StickyNote, Sprout, PawPrint,
   Activity, Clock, Plus, CircleAlert, Square, Droplet, Hourglass,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -24,6 +24,7 @@ type Stats = {
   inventory: number
   notes: number
   plants: number
+  pets: number
 }
 
 function plantWateringStatus(plant: Plant): 'overdue' | 'due_soon' | 'ok' | null {
@@ -61,6 +62,7 @@ const QUICK_ADD_ITEMS = [
   { label: 'Inventory item', href: '/inventory?add=1', icon: Package, color: '#b5843a' },
   { label: 'Note', href: '/notes?add=1', icon: StickyNote, color: '#bd9038' },
   { label: 'Plant', href: '/plants?add=1', icon: Sprout, color: '#7c9a6e' },
+  { label: 'Pet', href: '/pets?add=1', icon: PawPrint, color: '#a07a52' },
 ]
 
 const RAISED_CARD = 'shadow-[8px_8px_18px_#ccb5a5,-8px_-8px_18px_#f7ebe1]'
@@ -103,7 +105,7 @@ export default function DashboardPage() {
   const [firstName, setFirstName] = useState('')
   const [stats, setStats] = useState<Stats>({
     projects: 0, tasks: 0, events: 0, monthExpenses: 0,
-    shopping: 0, contacts: 0, inventory: 0, notes: 0, plants: 0,
+    shopping: 0, contacts: 0, inventory: 0, notes: 0, plants: 0, pets: 0,
   })
   const [myTasks, setMyTasks] = useState<Task[]>([])
   const [activity, setActivity] = useState<ActivityLogEntry[]>([])
@@ -147,7 +149,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const [projects, tasks, events, shopping, contacts, inventory, notes, plants, transactions] = await Promise.all([
+      const [projects, tasks, events, shopping, contacts, inventory, notes, plants, pets, transactions] = await Promise.all([
         supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('events').select('id', { count: 'exact', head: true }).gte('start_time', new Date().toISOString()),
@@ -156,6 +158,7 @@ export default function DashboardPage() {
         supabase.from('inventory_items').select('id', { count: 'exact', head: true }),
         supabase.from('notes').select('id', { count: 'exact', head: true }),
         supabase.from('plants').select('id', { count: 'exact', head: true }),
+        supabase.from('pets').select('id', { count: 'exact', head: true }),
         supabase.from('transactions').select('amount, type, date'),
       ])
 
@@ -179,6 +182,7 @@ export default function DashboardPage() {
         inventory: inventory.count ?? 0,
         notes: notes.count ?? 0,
         plants: plants.count ?? 0,
+        pets: pets.count ?? 0,
       })
       setLoading(false)
     }
@@ -234,6 +238,7 @@ export default function DashboardPage() {
     { href: '/inventory', label: 'Inventory Items', value: stats.inventory, icon: Package, color: '#b5843a' },
     { href: '/notes', label: 'Notes', value: stats.notes, icon: StickyNote, color: '#bd9038' },
     { href: '/plants', label: 'Plants', value: stats.plants, icon: Sprout, color: '#7c9a6e' },
+    { href: '/pets', label: 'Pets', value: stats.pets, icon: PawPrint, color: '#a07a52' },
   ]
 
   const visibleCards = cards.filter(c => canSee(c.href))

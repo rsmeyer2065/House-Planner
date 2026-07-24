@@ -11,6 +11,7 @@ import type { HouseholdSection, MemberType } from './types'
 export const TEMP_GRANTABLE_SECTIONS: HouseholdSection[] = [
   'tasks',
   'plants',
+  'pets',
   'notes',
   'contacts',
   'inventory',
@@ -20,6 +21,7 @@ export const SECTION_LABELS: Record<HouseholdSection, string> = {
   dashboard: 'Dashboard',
   tasks: 'Tasks',
   plants: 'Plants',
+  pets: 'Pets',
   notes: 'Notes',
   contacts: 'Contacts',
   inventory: 'Inventory',
@@ -34,6 +36,7 @@ const ROUTE_SECTIONS: { prefix: string; section: HouseholdSection }[] = [
   { prefix: '/dashboard', section: 'dashboard' },
   { prefix: '/tasks', section: 'tasks' },
   { prefix: '/plants', section: 'plants' },
+  { prefix: '/pets', section: 'pets' },
   { prefix: '/notes', section: 'notes' },
   { prefix: '/contacts', section: 'contacts' },
   { prefix: '/inventory', section: 'inventory' },
